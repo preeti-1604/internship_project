@@ -4,7 +4,23 @@ import os
 
 app = Flask(__name__)
 
-OUTPUT_DIR = os.path.join(os.path.dirname(__file__), "ev_charging_site_selection", "outputs")
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+PROJECT_DIR = os.path.join(BASE_DIR, "ev_charging_site_selection")
+OUTPUT_DIR = os.path.join(PROJECT_DIR, "outputs")
+
+# Run pipeline once on startup to generate dashboard
+def run_pipeline():
+    print("Running EV site selection pipeline...")
+    result = subprocess.run(
+        ["python", "main.py"],
+        cwd=PROJECT_DIR,
+        capture_output=True, text=True
+    )
+    print(result.stdout)
+    if result.returncode != 0:
+        print("Pipeline error:", result.stderr)
+
+run_pipeline()
 
 @app.route("/")
 def index():
@@ -15,11 +31,5 @@ def serve_output(filename):
     return send_from_directory(OUTPUT_DIR, filename)
 
 if __name__ == "__main__":
-    # Run pipeline first to generate dashboard
-    print("Running EV site selection pipeline...")
-    os.chdir("ev_charging_site_selection")
-    subprocess.run(["python", "main.py"], check=True)
-    os.chdir("..")
-
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port)

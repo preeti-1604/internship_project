@@ -8,4 +8,5 @@ matplotlib>=3.8
 plotly>=5.18
 osmnx>=1.9
 requests>=2.31
-notebook>=7.0
+flask>=3.0
+gunicorn>=21.0

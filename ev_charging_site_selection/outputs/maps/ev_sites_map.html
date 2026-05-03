@@ -1,0 +1,835 @@
+<!DOCTYPE html>
+<html>
+<head>
+    
+    <meta http-equiv="content-type" content="text/html; charset=UTF-8" />
+    <script src="https://cdn.jsdelivr.net/npm/leaflet@1.9.3/dist/leaflet.js"></script>
+    <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.2.2/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Leaflet.awesome-markers/2.0.2/leaflet.awesome-markers.js"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/leaflet@1.9.3/dist/leaflet.css"/>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap@5.2.2/dist/css/bootstrap.min.css"/>
+    <link rel="stylesheet" href="https://netdna.bootstrapcdn.com/bootstrap/3.0.0/css/bootstrap-glyphicons.css"/>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.2.0/css/all.min.css"/>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/Leaflet.awesome-markers/2.0.2/leaflet.awesome-markers.css"/>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/python-visualization/folium/folium/templates/leaflet.awesome.rotate.min.css"/>
+    
+            <meta name="viewport" content="width=device-width,
+                initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+            <style>
+                #map_c848c38924a855d8e7f3dcb92f02ddbe {
+                    position: relative;
+                    width: 100.0%;
+                    height: 100.0%;
+                    left: 0.0%;
+                    top: 0.0%;
+                }
+                .leaflet-container { font-size: 1rem; }
+            </style>
+
+            <style>html, body {
+                width: 100%;
+                height: 100%;
+                margin: 0;
+                padding: 0;
+            }
+            </style>
+
+            <style>#map {
+                position:absolute;
+                top:0;
+                bottom:0;
+                right:0;
+                left:0;
+                }
+            </style>
+
+            <script>
+                L_NO_TOUCH = false;
+                L_DISABLE_3D = false;
+            </script>
+
+        
+</head>
+<body>
+    
+    
+    <style>
+      #ev-search-box {
+        position: absolute; top: 16px; left: 50%; transform: translateX(-50%);
+        z-index: 9999; display: flex; gap: 8px; align-items: center;
+        background: #0f172a; border: 1px solid #334155; border-radius: 12px;
+        padding: 10px 14px; box-shadow: 0 4px 24px rgba(0,0,0,0.5);
+        min-width: 380px;
+      }
+      #ev-search-box input {
+        flex: 1; background: #1e293b; border: 1px solid #475569; border-radius: 8px;
+        color: #e2e8f0; padding: 8px 12px; font-size: 0.9rem; outline: none;
+      }
+      #ev-search-box input::placeholder { color: #64748b; }
+      #ev-search-box button {
+        background: #3b82f6; color: #fff; border: none; border-radius: 8px;
+        padding: 8px 16px; cursor: pointer; font-size: 0.88rem; font-weight: 600;
+        white-space: nowrap;
+      }
+      #ev-search-box button:hover { background: #2563eb; }
+      #radius-select {
+        background: #1e293b; border: 1px solid #475569; border-radius: 8px;
+        color: #e2e8f0; padding: 8px 8px; font-size: 0.85rem; cursor: pointer;
+      }
+      #ev-results-panel {
+        position: absolute; top: 76px; right: 16px; z-index: 9998;
+        background: #0f172a; border: 1px solid #334155; border-radius: 12px;
+        width: 320px; max-height: 480px; overflow-y: auto;
+        box-shadow: 0 4px 24px rgba(0,0,0,0.5); display: none;
+      }
+      #ev-results-panel .panel-header {
+        padding: 12px 16px; border-bottom: 1px solid #334155;
+        font-size: 0.85rem; color: #94a3b8; display: flex;
+        justify-content: space-between; align-items: center;
+        position: sticky; top: 0; background: #0f172a;
+      }
+      #ev-results-panel .panel-header b { color: #e2e8f0; font-size: 0.95rem; }
+      #ev-results-panel .close-btn {
+        cursor: pointer; color: #64748b; font-size: 1.1rem; line-height: 1;
+        background: none; border: none; padding: 0;
+      }
+      #ev-results-panel .close-btn:hover { color: #e2e8f0; }
+      .ev-site-card {
+        padding: 12px 16px; border-bottom: 1px solid #1e293b;
+        cursor: pointer; transition: background 0.15s;
+      }
+      .ev-site-card:hover { background: #1e293b; }
+      .ev-site-card .site-name {
+        font-weight: 700; color: #3b82f6; font-size: 0.92rem;
+        display: flex; justify-content: space-between; align-items: center;
+      }
+      .ev-site-card .site-coords {
+        font-size: 0.75rem; color: #64748b; margin-top: 2px; font-family: monospace;
+      }
+      .ev-site-card .site-scores {
+        display: flex; gap: 10px; margin-top: 6px; font-size: 0.78rem;
+      }
+      .ev-site-card .score-pill {
+        background: #1e293b; border: 1px solid #334155; border-radius: 6px;
+        padding: 2px 8px; color: #94a3b8;
+      }
+      .ev-site-card .score-pill b { color: #e2e8f0; }
+      .top-badge {
+        background: #92400e; color: #fcd34d; font-size: 0.7rem;
+        padding: 1px 6px; border-radius: 4px; font-weight: 700;
+      }
+      .dist-badge {
+        background: #1e3a5f; color: #93c5fd; font-size: 0.7rem;
+        padding: 1px 6px; border-radius: 4px;
+      }
+      #ev-search-status {
+        position: absolute; top: 76px; left: 50%; transform: translateX(-50%);
+        z-index: 9997; background: #0f172a; border: 1px solid #334155;
+        border-radius: 8px; padding: 8px 16px; font-size: 0.82rem;
+        color: #94a3b8; display: none; white-space: nowrap;
+      }
+    </style>
+
+    <div id="ev-search-box">
+      <input id="ev-location-input" type="text"
+             placeholder="Search location (e.g. Koramangala, Whitefield…)"
+             onkeydown="if(event.key==='Enter') searchLocation()" />
+      <select id="radius-select">
+        <option value="2">2 km</option>
+        <option value="5" selected>5 km</option>
+        <option value="10">10 km</option>
+        <option value="20">20 km</option>
+      </select>
+      <button onclick="searchLocation()">🔍 Search</button>
+    </div>
+    <div id="ev-search-status"></div>
+    <div id="ev-results-panel">
+      <div class="panel-header">
+        <div><b id="panel-title">Nearby EV Sites</b><br><span id="panel-subtitle"></span></div>
+        <button class="close-btn" onclick="closePanel()">✕</button>
+      </div>
+      <div id="panel-body"></div>
+    </div>
+
+    <script>
+      const EV_SITES = [{"id": "Manyata Tech Park", "lat": 13.047, "lon": 77.62, "ahp": 0.865, "demand": 0.662, "score": 0.662, "rank": 1, "is_top": true}, {"id": "Vijayanagar", "lat": 12.975, "lon": 77.535, "ahp": 0.788, "demand": 0.51, "score": 0.621, "rank": 2, "is_top": true}, {"id": "Kalyan Nagar", "lat": 13.028, "lon": 77.639, "ahp": 0.766, "demand": 0.439, "score": 0.581, "rank": 3, "is_top": true}, {"id": "Cunningham Road", "lat": 12.995, "lon": 77.595, "ahp": 0.614, "demand": 0.616, "score": 0.579, "rank": 4, "is_top": true}, {"id": "Brigade Road", "lat": 12.9716, "lon": 77.6081, "ahp": 0.771, "demand": 0.623, "score": 0.573, "rank": 5, "is_top": true}, {"id": "Residency Road", "lat": 12.9716, "lon": 77.6081, "ahp": 0.771, "demand": 0.623, "score": 0.573, "rank": 5, "is_top": true}, {"id": "MG Road Metro Station", "lat": 12.9756, "lon": 77.6069, "ahp": 0.76, "demand": 0.642, "score": 0.572, "rank": 7, "is_top": true}, {"id": "Hennur Main Road", "lat": 13.035, "lon": 77.645, "ahp": 0.602, "demand": 0.494, "score": 0.539, "rank": 8, "is_top": true}, {"id": "Jayanagar 4th Block", "lat": 12.925, "lon": 77.5833, "ahp": 0.702, "demand": 0.589, "score": 0.528, "rank": 9, "is_top": true}, {"id": "Thanisandra Main Road", "lat": 13.055, "lon": 77.655, "ahp": 0.596, "demand": 0.454, "score": 0.525, "rank": 10, "is_top": true}, {"id": "Hebbal Flyover", "lat": 13.0358, "lon": 77.597, "ahp": 0.643, "demand": 0.445, "score": 0.51, "rank": 11, "is_top": false}, {"id": "Frazer Town", "lat": 12.989, "lon": 77.618, "ahp": 0.521, "demand": 0.509, "score": 0.413, "rank": 12, "is_top": false}, {"id": "Kammanahalli Main Road", "lat": 13.012, "lon": 77.638, "ahp": 0.493, "demand": 0.305, "score": 0.376, "rank": 13, "is_top": false}, {"id": "Ulsoor Lake Area", "lat": 12.981, "lon": 77.621, "ahp": 0.393, "demand": 0.586, "score": 0.373, "rank": 14, "is_top": false}, {"id": "Nagawara", "lat": 13.045, "lon": 77.605, "ahp": 0.339, "demand": 0.475, "score": 0.333, "rank": 15, "is_top": false}];
+      let searchCircle = null;
+      let searchMarker = null;
+
+      function haversine(lat1, lon1, lat2, lon2) {
+        const R = 6371;
+        const dLat = (lat2 - lat1) * Math.PI / 180;
+        const dLon = (lon2 - lon1) * Math.PI / 180;
+        const a = Math.sin(dLat/2)**2 +
+                  Math.cos(lat1*Math.PI/180) * Math.cos(lat2*Math.PI/180) *
+                  Math.sin(dLon/2)**2;
+        return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+      }
+
+      function setStatus(msg) {
+        const el = document.getElementById('ev-search-status');
+        el.textContent = msg;
+        el.style.display = msg ? 'block' : 'none';
+      }
+
+      function closePanel() {
+        document.getElementById('ev-results-panel').style.display = 'none';
+      }
+
+      function flyToSite(lat, lon, siteId) {
+        const map = Object.values(window).find(v => v && v._leaflet_id && v.setView);
+        if (map) map.setView([lat, lon], 16);
+      }
+
+      function renderPanel(locationName, lat, lon, radius, nearby) {
+        document.getElementById('panel-title').textContent =
+          `${nearby.length} EV Site${nearby.length !== 1 ? 's' : ''} within ${radius} km`;
+        document.getElementById('panel-subtitle').textContent = locationName;
+
+        const body = document.getElementById('panel-body');
+        if (nearby.length === 0) {
+          body.innerHTML = `<div style="padding:20px;text-align:center;color:#64748b">
+            <div style="font-size:2rem">📍</div>
+            <div style="margin-top:8px">No EV sites found within ${radius} km of this location.</div>
+            <div style="font-size:0.78rem;margin-top:4px">Try increasing the radius.</div>
+          </div>`;
+        } else {
+          body.innerHTML = nearby.map(s => `
+            <div class="ev-site-card" onclick="flyToSite(${s.lat},${s.lon},'${s.id}')">
+              <div class="site-name">
+                <span>${s.id}</span>
+                <span style="display:flex;gap:4px;align-items:center">
+                  ${s.is_top ? '<span class="top-badge">⭐ TOP 10</span>' : ''}
+                  <span class="dist-badge">${s.dist.toFixed(1)} km</span>
+                </span>
+              </div>
+              <div class="site-coords">📍 ${s.lat}, ${s.lon}</div>
+              <div class="site-scores">
+                <span class="score-pill">AHP <b>${s.ahp}</b></span>
+                <span class="score-pill">Demand <b>${s.demand}</b></span>
+                <span class="score-pill">Score <b style="color:#10b981">${s.score}</b></span>
+                <span class="score-pill">Rank <b>#${s.rank}</b></span>
+              </div>
+            </div>`).join('');
+        }
+        document.getElementById('ev-results-panel').style.display = 'block';
+      }
+
+      function drawSearchArea(lat, lon, radiusKm) {
+        const map = Object.values(window).find(v => v && v._leaflet_id && v.setView);
+        if (!map) return;
+        if (searchCircle)  { searchCircle.remove(); }
+        if (searchMarker) { searchMarker.remove(); }
+        searchCircle = L.circle([lat, lon], {
+          radius: radiusKm * 1000,
+          color: '#3b82f6', fillColor: '#3b82f6',
+          fillOpacity: 0.08, weight: 2, dashArray: '6 4'
+        }).addTo(map);
+        searchMarker = L.marker([lat, lon], {
+          icon: L.divIcon({
+            html: `<div style="background:#3b82f6;color:#fff;border-radius:50%;width:28px;height:28px;
+                          display:flex;align-items:center;justify-content:center;
+                          font-size:14px;border:2px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,0.4)">📍</div>`,
+            iconSize: [28, 28], iconAnchor: [14, 14], className: ''
+          })
+        }).addTo(map);
+        map.setView([lat, lon], 13);
+      }
+
+      async function searchLocation() {
+        const query = document.getElementById('ev-location-input').value.trim();
+        const radius = parseFloat(document.getElementById('radius-select').value);
+        if (!query) return;
+
+        setStatus('🔍 Searching for "' + query + '"…');
+        closePanel();
+
+        try {
+          // Try PositionStack API first (your API key)
+          const psUrl = `http://api.positionstack.com/v1/forward?access_key=25568ac20b49c89857f39f3505b6f7f5&query=${encodeURIComponent(query + ', Bangalore')}&limit=1`;
+          let res = await fetch(psUrl);
+          let data = await res.json();
+          
+          let lat, lon, displayName;
+          
+          if (data.data && data.data.length > 0) {
+            // PositionStack success
+            lat = data.data[0].latitude;
+            lon = data.data[0].longitude;
+            displayName = data.data[0].label.split(',').slice(0,2).join(', ');
+          } else {
+            // Fallback to Nominatim (free, no key needed)
+            const nomUrl = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query + ', Bengaluru')}&format=json&limit=1`;
+            res = await fetch(nomUrl, { headers: { 'Accept-Language': 'en' } });
+            data = await res.json();
+            
+            if (!data.length) {
+              setStatus('❌ Location not found. Try a different name.');
+              setTimeout(() => setStatus(''), 3000);
+              return;
+            }
+            
+            lat = parseFloat(data[0].lat);
+            lon = parseFloat(data[0].lon);
+            displayName = data[0].display_name.split(',').slice(0,2).join(', ');
+          }
+
+          drawSearchArea(lat, lon, radius);
+          setStatus('');
+
+          const nearby = EV_SITES
+            .map(s => ({ ...s, dist: haversine(lat, lon, s.lat, s.lon) }))
+            .filter(s => s.dist <= radius)
+            .sort((a, b) => a.dist - b.dist);
+
+          renderPanel(displayName, lat, lon, radius, nearby);
+
+        } catch(e) {
+          setStatus('❌ Search failed. Check your internet connection.');
+          setTimeout(() => setStatus(''), 3000);
+        }
+      }
+    </script>
+    
+    
+            <div class="folium-map" id="map_c848c38924a855d8e7f3dcb92f02ddbe" ></div>
+        
+</body>
+<script>
+    
+    
+            var map_c848c38924a855d8e7f3dcb92f02ddbe = L.map(
+                "map_c848c38924a855d8e7f3dcb92f02ddbe",
+                {
+                    center: [13.002773333333332, 77.61162666666665],
+                    crs: L.CRS.EPSG3857,
+                    ...{
+  "zoom": 12,
+  "zoomControl": true,
+  "preferCanvas": false,
+}
+
+                }
+            );
+
+            
+
+        
+    
+            var tile_layer_acc3e92deb7c636055acc7a1ee9a30c2 = L.tileLayer(
+                "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png",
+                {
+  "minZoom": 0,
+  "maxZoom": 20,
+  "maxNativeZoom": 20,
+  "noWrap": false,
+  "attribution": "\u0026copy; \u003ca href=\"https://www.openstreetmap.org/copyright\"\u003eOpenStreetMap\u003c/a\u003e contributors \u0026copy; \u003ca href=\"https://carto.com/attributions\"\u003eCARTO\u003c/a\u003e",
+  "subdomains": "abcd",
+  "detectRetina": false,
+  "tms": false,
+  "opacity": 1,
+}
+
+            );
+        
+    
+            tile_layer_acc3e92deb7c636055acc7a1ee9a30c2.addTo(map_c848c38924a855d8e7f3dcb92f02ddbe);
+        
+    
+            var circle_marker_b25481117849018106d48b368ad112cb = L.circleMarker(
+                [13.047, 77.62],
+                {"bubblingMouseEvents": true, "color": "#ef4444", "dashArray": null, "dashOffset": null, "fill": true, "fillColor": "#ef4444", "fillOpacity": 0.85, "fillRule": "evenodd", "lineCap": "round", "lineJoin": "round", "opacity": 1.0, "radius": 10, "stroke": true, "weight": 3}
+            ).addTo(map_c848c38924a855d8e7f3dcb92f02ddbe);
+        
+    
+        var popup_a3a5e4bf997257ea705e07114cd1c14f = L.popup({
+  "maxWidth": 240,
+});
+
+        
+            
+                var html_9a6ae7e2f82d03280ff6c75c663cac87 = $(`<div id="html_9a6ae7e2f82d03280ff6c75c663cac87" style="width: 100.0%; height: 100.0%;"><div style='font-family:sans-serif;min-width:180px;padding:4px'><b style='font-size:1.05em;color:#1e293b'>Manyata Tech Park</b><br><span style="color:#d97706;font-weight:700">⭐ Top 10 Site</span><hr style='margin:6px 0;border-color:#e2e8f0'><table style='font-size:0.85em;width:100%'><tr><td><b>Lat / Lon</b></td><td>13.047, 77.62</td></tr><tr><td><b>AHP Score</b></td><td>0.865</td></tr><tr><td><b>Demand</b></td><td>0.662</td></tr><tr><td><b>Final Score</b></td><td><b style='color:#16a34a'>0.662</b></td></tr><tr><td><b>Rank</b></td><td><b>#1</b></td></tr></table></div></div>`)[0];
+                popup_a3a5e4bf997257ea705e07114cd1c14f.setContent(html_9a6ae7e2f82d03280ff6c75c663cac87);
+            
+        
+
+        circle_marker_b25481117849018106d48b368ad112cb.bindPopup(popup_a3a5e4bf997257ea705e07114cd1c14f)
+        ;
+
+        
+    
+    
+            circle_marker_b25481117849018106d48b368ad112cb.bindTooltip(
+                `<div>
+                     Manyata Tech Park | Rank #1 | Score 0.662
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            var circle_marker_736b62eb9f9aa2ea8ccd530bd499eda7 = L.circleMarker(
+                [12.975, 77.535],
+                {"bubblingMouseEvents": true, "color": "#ef4444", "dashArray": null, "dashOffset": null, "fill": true, "fillColor": "#ef4444", "fillOpacity": 0.85, "fillRule": "evenodd", "lineCap": "round", "lineJoin": "round", "opacity": 1.0, "radius": 10, "stroke": true, "weight": 3}
+            ).addTo(map_c848c38924a855d8e7f3dcb92f02ddbe);
+        
+    
+        var popup_72a41c0a8a78dd1ae577053f93a9829e = L.popup({
+  "maxWidth": 240,
+});
+
+        
+            
+                var html_4b74d532f2345bd069f1ab6dc0e578a6 = $(`<div id="html_4b74d532f2345bd069f1ab6dc0e578a6" style="width: 100.0%; height: 100.0%;"><div style='font-family:sans-serif;min-width:180px;padding:4px'><b style='font-size:1.05em;color:#1e293b'>Vijayanagar</b><br><span style="color:#d97706;font-weight:700">⭐ Top 10 Site</span><hr style='margin:6px 0;border-color:#e2e8f0'><table style='font-size:0.85em;width:100%'><tr><td><b>Lat / Lon</b></td><td>12.975, 77.535</td></tr><tr><td><b>AHP Score</b></td><td>0.788</td></tr><tr><td><b>Demand</b></td><td>0.51</td></tr><tr><td><b>Final Score</b></td><td><b style='color:#16a34a'>0.621</b></td></tr><tr><td><b>Rank</b></td><td><b>#2</b></td></tr></table></div></div>`)[0];
+                popup_72a41c0a8a78dd1ae577053f93a9829e.setContent(html_4b74d532f2345bd069f1ab6dc0e578a6);
+            
+        
+
+        circle_marker_736b62eb9f9aa2ea8ccd530bd499eda7.bindPopup(popup_72a41c0a8a78dd1ae577053f93a9829e)
+        ;
+
+        
+    
+    
+            circle_marker_736b62eb9f9aa2ea8ccd530bd499eda7.bindTooltip(
+                `<div>
+                     Vijayanagar | Rank #2 | Score 0.621
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            var circle_marker_a5bd09a092da544583a603d2bf2807c0 = L.circleMarker(
+                [13.028, 77.639],
+                {"bubblingMouseEvents": true, "color": "#ef4444", "dashArray": null, "dashOffset": null, "fill": true, "fillColor": "#ef4444", "fillOpacity": 0.85, "fillRule": "evenodd", "lineCap": "round", "lineJoin": "round", "opacity": 1.0, "radius": 10, "stroke": true, "weight": 3}
+            ).addTo(map_c848c38924a855d8e7f3dcb92f02ddbe);
+        
+    
+        var popup_1bed5f3ba7147bafa5f25e9bf3985341 = L.popup({
+  "maxWidth": 240,
+});
+
+        
+            
+                var html_b7100a23dd9adfc512c7b1289d55ff44 = $(`<div id="html_b7100a23dd9adfc512c7b1289d55ff44" style="width: 100.0%; height: 100.0%;"><div style='font-family:sans-serif;min-width:180px;padding:4px'><b style='font-size:1.05em;color:#1e293b'>Kalyan Nagar</b><br><span style="color:#d97706;font-weight:700">⭐ Top 10 Site</span><hr style='margin:6px 0;border-color:#e2e8f0'><table style='font-size:0.85em;width:100%'><tr><td><b>Lat / Lon</b></td><td>13.028, 77.639</td></tr><tr><td><b>AHP Score</b></td><td>0.766</td></tr><tr><td><b>Demand</b></td><td>0.439</td></tr><tr><td><b>Final Score</b></td><td><b style='color:#16a34a'>0.581</b></td></tr><tr><td><b>Rank</b></td><td><b>#3</b></td></tr></table></div></div>`)[0];
+                popup_1bed5f3ba7147bafa5f25e9bf3985341.setContent(html_b7100a23dd9adfc512c7b1289d55ff44);
+            
+        
+
+        circle_marker_a5bd09a092da544583a603d2bf2807c0.bindPopup(popup_1bed5f3ba7147bafa5f25e9bf3985341)
+        ;
+
+        
+    
+    
+            circle_marker_a5bd09a092da544583a603d2bf2807c0.bindTooltip(
+                `<div>
+                     Kalyan Nagar | Rank #3 | Score 0.581
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            var circle_marker_7a27accd22889ae27499ded86b5473b4 = L.circleMarker(
+                [12.995, 77.595],
+                {"bubblingMouseEvents": true, "color": "#ef4444", "dashArray": null, "dashOffset": null, "fill": true, "fillColor": "#ef4444", "fillOpacity": 0.85, "fillRule": "evenodd", "lineCap": "round", "lineJoin": "round", "opacity": 1.0, "radius": 10, "stroke": true, "weight": 3}
+            ).addTo(map_c848c38924a855d8e7f3dcb92f02ddbe);
+        
+    
+        var popup_0bdf6b3f8c3d467a4f43bda66a9c682c = L.popup({
+  "maxWidth": 240,
+});
+
+        
+            
+                var html_73d735b669d232b3895e0da52b64a184 = $(`<div id="html_73d735b669d232b3895e0da52b64a184" style="width: 100.0%; height: 100.0%;"><div style='font-family:sans-serif;min-width:180px;padding:4px'><b style='font-size:1.05em;color:#1e293b'>Cunningham Road</b><br><span style="color:#d97706;font-weight:700">⭐ Top 10 Site</span><hr style='margin:6px 0;border-color:#e2e8f0'><table style='font-size:0.85em;width:100%'><tr><td><b>Lat / Lon</b></td><td>12.995, 77.595</td></tr><tr><td><b>AHP Score</b></td><td>0.614</td></tr><tr><td><b>Demand</b></td><td>0.616</td></tr><tr><td><b>Final Score</b></td><td><b style='color:#16a34a'>0.579</b></td></tr><tr><td><b>Rank</b></td><td><b>#4</b></td></tr></table></div></div>`)[0];
+                popup_0bdf6b3f8c3d467a4f43bda66a9c682c.setContent(html_73d735b669d232b3895e0da52b64a184);
+            
+        
+
+        circle_marker_7a27accd22889ae27499ded86b5473b4.bindPopup(popup_0bdf6b3f8c3d467a4f43bda66a9c682c)
+        ;
+
+        
+    
+    
+            circle_marker_7a27accd22889ae27499ded86b5473b4.bindTooltip(
+                `<div>
+                     Cunningham Road | Rank #4 | Score 0.579
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            var circle_marker_f373277b91a0dfc23dd24010734e41f3 = L.circleMarker(
+                [12.9716, 77.6081],
+                {"bubblingMouseEvents": true, "color": "#ef4444", "dashArray": null, "dashOffset": null, "fill": true, "fillColor": "#ef4444", "fillOpacity": 0.85, "fillRule": "evenodd", "lineCap": "round", "lineJoin": "round", "opacity": 1.0, "radius": 10, "stroke": true, "weight": 3}
+            ).addTo(map_c848c38924a855d8e7f3dcb92f02ddbe);
+        
+    
+        var popup_ab18eaeae8f1c9f2114c95fe90bb13d8 = L.popup({
+  "maxWidth": 240,
+});
+
+        
+            
+                var html_d97859cdaa53ffca3796511708eb90ea = $(`<div id="html_d97859cdaa53ffca3796511708eb90ea" style="width: 100.0%; height: 100.0%;"><div style='font-family:sans-serif;min-width:180px;padding:4px'><b style='font-size:1.05em;color:#1e293b'>Brigade Road</b><br><span style="color:#d97706;font-weight:700">⭐ Top 10 Site</span><hr style='margin:6px 0;border-color:#e2e8f0'><table style='font-size:0.85em;width:100%'><tr><td><b>Lat / Lon</b></td><td>12.9716, 77.6081</td></tr><tr><td><b>AHP Score</b></td><td>0.771</td></tr><tr><td><b>Demand</b></td><td>0.623</td></tr><tr><td><b>Final Score</b></td><td><b style='color:#16a34a'>0.573</b></td></tr><tr><td><b>Rank</b></td><td><b>#5</b></td></tr></table></div></div>`)[0];
+                popup_ab18eaeae8f1c9f2114c95fe90bb13d8.setContent(html_d97859cdaa53ffca3796511708eb90ea);
+            
+        
+
+        circle_marker_f373277b91a0dfc23dd24010734e41f3.bindPopup(popup_ab18eaeae8f1c9f2114c95fe90bb13d8)
+        ;
+
+        
+    
+    
+            circle_marker_f373277b91a0dfc23dd24010734e41f3.bindTooltip(
+                `<div>
+                     Brigade Road | Rank #5 | Score 0.573
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            var circle_marker_f1cd955d750390471ad58e61eda56680 = L.circleMarker(
+                [12.9716, 77.6081],
+                {"bubblingMouseEvents": true, "color": "#ef4444", "dashArray": null, "dashOffset": null, "fill": true, "fillColor": "#ef4444", "fillOpacity": 0.85, "fillRule": "evenodd", "lineCap": "round", "lineJoin": "round", "opacity": 1.0, "radius": 10, "stroke": true, "weight": 3}
+            ).addTo(map_c848c38924a855d8e7f3dcb92f02ddbe);
+        
+    
+        var popup_ea40b574d1d738665d974ee81b28813c = L.popup({
+  "maxWidth": 240,
+});
+
+        
+            
+                var html_18d24040aedec7f63a87fe462641ed2a = $(`<div id="html_18d24040aedec7f63a87fe462641ed2a" style="width: 100.0%; height: 100.0%;"><div style='font-family:sans-serif;min-width:180px;padding:4px'><b style='font-size:1.05em;color:#1e293b'>Residency Road</b><br><span style="color:#d97706;font-weight:700">⭐ Top 10 Site</span><hr style='margin:6px 0;border-color:#e2e8f0'><table style='font-size:0.85em;width:100%'><tr><td><b>Lat / Lon</b></td><td>12.9716, 77.6081</td></tr><tr><td><b>AHP Score</b></td><td>0.771</td></tr><tr><td><b>Demand</b></td><td>0.623</td></tr><tr><td><b>Final Score</b></td><td><b style='color:#16a34a'>0.573</b></td></tr><tr><td><b>Rank</b></td><td><b>#5</b></td></tr></table></div></div>`)[0];
+                popup_ea40b574d1d738665d974ee81b28813c.setContent(html_18d24040aedec7f63a87fe462641ed2a);
+            
+        
+
+        circle_marker_f1cd955d750390471ad58e61eda56680.bindPopup(popup_ea40b574d1d738665d974ee81b28813c)
+        ;
+
+        
+    
+    
+            circle_marker_f1cd955d750390471ad58e61eda56680.bindTooltip(
+                `<div>
+                     Residency Road | Rank #5 | Score 0.573
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            var circle_marker_073a19d3eea958793e6e086f33ba461d = L.circleMarker(
+                [12.9756, 77.6069],
+                {"bubblingMouseEvents": true, "color": "#ef4444", "dashArray": null, "dashOffset": null, "fill": true, "fillColor": "#ef4444", "fillOpacity": 0.85, "fillRule": "evenodd", "lineCap": "round", "lineJoin": "round", "opacity": 1.0, "radius": 10, "stroke": true, "weight": 3}
+            ).addTo(map_c848c38924a855d8e7f3dcb92f02ddbe);
+        
+    
+        var popup_257d097a18ba3cdfe5d6f8e43235331f = L.popup({
+  "maxWidth": 240,
+});
+
+        
+            
+                var html_f0802aba33e4966bdf9137042c19204c = $(`<div id="html_f0802aba33e4966bdf9137042c19204c" style="width: 100.0%; height: 100.0%;"><div style='font-family:sans-serif;min-width:180px;padding:4px'><b style='font-size:1.05em;color:#1e293b'>MG Road Metro Station</b><br><span style="color:#d97706;font-weight:700">⭐ Top 10 Site</span><hr style='margin:6px 0;border-color:#e2e8f0'><table style='font-size:0.85em;width:100%'><tr><td><b>Lat / Lon</b></td><td>12.9756, 77.6069</td></tr><tr><td><b>AHP Score</b></td><td>0.76</td></tr><tr><td><b>Demand</b></td><td>0.642</td></tr><tr><td><b>Final Score</b></td><td><b style='color:#16a34a'>0.572</b></td></tr><tr><td><b>Rank</b></td><td><b>#7</b></td></tr></table></div></div>`)[0];
+                popup_257d097a18ba3cdfe5d6f8e43235331f.setContent(html_f0802aba33e4966bdf9137042c19204c);
+            
+        
+
+        circle_marker_073a19d3eea958793e6e086f33ba461d.bindPopup(popup_257d097a18ba3cdfe5d6f8e43235331f)
+        ;
+
+        
+    
+    
+            circle_marker_073a19d3eea958793e6e086f33ba461d.bindTooltip(
+                `<div>
+                     MG Road Metro Station | Rank #7 | Score 0.572
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            var circle_marker_cb4abb15bd38c2d67d2aba38d405b720 = L.circleMarker(
+                [13.035, 77.645],
+                {"bubblingMouseEvents": true, "color": "#ef4444", "dashArray": null, "dashOffset": null, "fill": true, "fillColor": "#ef4444", "fillOpacity": 0.85, "fillRule": "evenodd", "lineCap": "round", "lineJoin": "round", "opacity": 1.0, "radius": 10, "stroke": true, "weight": 3}
+            ).addTo(map_c848c38924a855d8e7f3dcb92f02ddbe);
+        
+    
+        var popup_784d2772dd063ec969cd0ea222a8d2dc = L.popup({
+  "maxWidth": 240,
+});
+
+        
+            
+                var html_99b6ba22de0e6b57902169dfb7c4b122 = $(`<div id="html_99b6ba22de0e6b57902169dfb7c4b122" style="width: 100.0%; height: 100.0%;"><div style='font-family:sans-serif;min-width:180px;padding:4px'><b style='font-size:1.05em;color:#1e293b'>Hennur Main Road</b><br><span style="color:#d97706;font-weight:700">⭐ Top 10 Site</span><hr style='margin:6px 0;border-color:#e2e8f0'><table style='font-size:0.85em;width:100%'><tr><td><b>Lat / Lon</b></td><td>13.035, 77.645</td></tr><tr><td><b>AHP Score</b></td><td>0.602</td></tr><tr><td><b>Demand</b></td><td>0.494</td></tr><tr><td><b>Final Score</b></td><td><b style='color:#16a34a'>0.539</b></td></tr><tr><td><b>Rank</b></td><td><b>#8</b></td></tr></table></div></div>`)[0];
+                popup_784d2772dd063ec969cd0ea222a8d2dc.setContent(html_99b6ba22de0e6b57902169dfb7c4b122);
+            
+        
+
+        circle_marker_cb4abb15bd38c2d67d2aba38d405b720.bindPopup(popup_784d2772dd063ec969cd0ea222a8d2dc)
+        ;
+
+        
+    
+    
+            circle_marker_cb4abb15bd38c2d67d2aba38d405b720.bindTooltip(
+                `<div>
+                     Hennur Main Road | Rank #8 | Score 0.539
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            var circle_marker_097e65897abd1f10f2be4895898f064c = L.circleMarker(
+                [12.925, 77.5833],
+                {"bubblingMouseEvents": true, "color": "#ef4444", "dashArray": null, "dashOffset": null, "fill": true, "fillColor": "#ef4444", "fillOpacity": 0.85, "fillRule": "evenodd", "lineCap": "round", "lineJoin": "round", "opacity": 1.0, "radius": 10, "stroke": true, "weight": 3}
+            ).addTo(map_c848c38924a855d8e7f3dcb92f02ddbe);
+        
+    
+        var popup_cf2321d69415baa66809a3a091e0dd38 = L.popup({
+  "maxWidth": 240,
+});
+
+        
+            
+                var html_2c4b232cf47998509843c1887b12a056 = $(`<div id="html_2c4b232cf47998509843c1887b12a056" style="width: 100.0%; height: 100.0%;"><div style='font-family:sans-serif;min-width:180px;padding:4px'><b style='font-size:1.05em;color:#1e293b'>Jayanagar 4th Block</b><br><span style="color:#d97706;font-weight:700">⭐ Top 10 Site</span><hr style='margin:6px 0;border-color:#e2e8f0'><table style='font-size:0.85em;width:100%'><tr><td><b>Lat / Lon</b></td><td>12.925, 77.5833</td></tr><tr><td><b>AHP Score</b></td><td>0.702</td></tr><tr><td><b>Demand</b></td><td>0.589</td></tr><tr><td><b>Final Score</b></td><td><b style='color:#16a34a'>0.528</b></td></tr><tr><td><b>Rank</b></td><td><b>#9</b></td></tr></table></div></div>`)[0];
+                popup_cf2321d69415baa66809a3a091e0dd38.setContent(html_2c4b232cf47998509843c1887b12a056);
+            
+        
+
+        circle_marker_097e65897abd1f10f2be4895898f064c.bindPopup(popup_cf2321d69415baa66809a3a091e0dd38)
+        ;
+
+        
+    
+    
+            circle_marker_097e65897abd1f10f2be4895898f064c.bindTooltip(
+                `<div>
+                     Jayanagar 4th Block | Rank #9 | Score 0.528
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            var circle_marker_eecfa3cd687f7d6efd978ce7c0983d1d = L.circleMarker(
+                [13.055, 77.655],
+                {"bubblingMouseEvents": true, "color": "#ef4444", "dashArray": null, "dashOffset": null, "fill": true, "fillColor": "#ef4444", "fillOpacity": 0.85, "fillRule": "evenodd", "lineCap": "round", "lineJoin": "round", "opacity": 1.0, "radius": 10, "stroke": true, "weight": 3}
+            ).addTo(map_c848c38924a855d8e7f3dcb92f02ddbe);
+        
+    
+        var popup_9d2e8f6befe4bd250835f15f0010a603 = L.popup({
+  "maxWidth": 240,
+});
+
+        
+            
+                var html_40a424159be2326a4f3f4807f13a7de0 = $(`<div id="html_40a424159be2326a4f3f4807f13a7de0" style="width: 100.0%; height: 100.0%;"><div style='font-family:sans-serif;min-width:180px;padding:4px'><b style='font-size:1.05em;color:#1e293b'>Thanisandra Main Road</b><br><span style="color:#d97706;font-weight:700">⭐ Top 10 Site</span><hr style='margin:6px 0;border-color:#e2e8f0'><table style='font-size:0.85em;width:100%'><tr><td><b>Lat / Lon</b></td><td>13.055, 77.655</td></tr><tr><td><b>AHP Score</b></td><td>0.596</td></tr><tr><td><b>Demand</b></td><td>0.454</td></tr><tr><td><b>Final Score</b></td><td><b style='color:#16a34a'>0.525</b></td></tr><tr><td><b>Rank</b></td><td><b>#10</b></td></tr></table></div></div>`)[0];
+                popup_9d2e8f6befe4bd250835f15f0010a603.setContent(html_40a424159be2326a4f3f4807f13a7de0);
+            
+        
+
+        circle_marker_eecfa3cd687f7d6efd978ce7c0983d1d.bindPopup(popup_9d2e8f6befe4bd250835f15f0010a603)
+        ;
+
+        
+    
+    
+            circle_marker_eecfa3cd687f7d6efd978ce7c0983d1d.bindTooltip(
+                `<div>
+                     Thanisandra Main Road | Rank #10 | Score 0.525
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            var circle_marker_14c20beae7b2da1bfff5b84c03abbd32 = L.circleMarker(
+                [13.0358, 77.597],
+                {"bubblingMouseEvents": true, "color": "#3b82f6", "dashArray": null, "dashOffset": null, "fill": true, "fillColor": "#3b82f6", "fillOpacity": 0.85, "fillRule": "evenodd", "lineCap": "round", "lineJoin": "round", "opacity": 1.0, "radius": 6, "stroke": true, "weight": 3}
+            ).addTo(map_c848c38924a855d8e7f3dcb92f02ddbe);
+        
+    
+        var popup_ec2a6470b547700e174d6134bc530948 = L.popup({
+  "maxWidth": 240,
+});
+
+        
+            
+                var html_46569436000c5781ba93ced436d036b8 = $(`<div id="html_46569436000c5781ba93ced436d036b8" style="width: 100.0%; height: 100.0%;"><div style='font-family:sans-serif;min-width:180px;padding:4px'><b style='font-size:1.05em;color:#1e293b'>Hebbal Flyover</b><hr style='margin:6px 0;border-color:#e2e8f0'><table style='font-size:0.85em;width:100%'><tr><td><b>Lat / Lon</b></td><td>13.0358, 77.597</td></tr><tr><td><b>AHP Score</b></td><td>0.643</td></tr><tr><td><b>Demand</b></td><td>0.445</td></tr><tr><td><b>Final Score</b></td><td><b style='color:#16a34a'>0.51</b></td></tr><tr><td><b>Rank</b></td><td><b>#11</b></td></tr></table></div></div>`)[0];
+                popup_ec2a6470b547700e174d6134bc530948.setContent(html_46569436000c5781ba93ced436d036b8);
+            
+        
+
+        circle_marker_14c20beae7b2da1bfff5b84c03abbd32.bindPopup(popup_ec2a6470b547700e174d6134bc530948)
+        ;
+
+        
+    
+    
+            circle_marker_14c20beae7b2da1bfff5b84c03abbd32.bindTooltip(
+                `<div>
+                     Hebbal Flyover | Rank #11 | Score 0.51
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            var circle_marker_b67492eea388d8db1a414460146e8bad = L.circleMarker(
+                [12.989, 77.618],
+                {"bubblingMouseEvents": true, "color": "#3b82f6", "dashArray": null, "dashOffset": null, "fill": true, "fillColor": "#3b82f6", "fillOpacity": 0.85, "fillRule": "evenodd", "lineCap": "round", "lineJoin": "round", "opacity": 1.0, "radius": 6, "stroke": true, "weight": 3}
+            ).addTo(map_c848c38924a855d8e7f3dcb92f02ddbe);
+        
+    
+        var popup_0c3101a4c4c27dc7b6d56fad0c9fb14c = L.popup({
+  "maxWidth": 240,
+});
+
+        
+            
+                var html_67b278dce1b59027e7040c7d50f9b60f = $(`<div id="html_67b278dce1b59027e7040c7d50f9b60f" style="width: 100.0%; height: 100.0%;"><div style='font-family:sans-serif;min-width:180px;padding:4px'><b style='font-size:1.05em;color:#1e293b'>Frazer Town</b><hr style='margin:6px 0;border-color:#e2e8f0'><table style='font-size:0.85em;width:100%'><tr><td><b>Lat / Lon</b></td><td>12.989, 77.618</td></tr><tr><td><b>AHP Score</b></td><td>0.521</td></tr><tr><td><b>Demand</b></td><td>0.509</td></tr><tr><td><b>Final Score</b></td><td><b style='color:#16a34a'>0.413</b></td></tr><tr><td><b>Rank</b></td><td><b>#12</b></td></tr></table></div></div>`)[0];
+                popup_0c3101a4c4c27dc7b6d56fad0c9fb14c.setContent(html_67b278dce1b59027e7040c7d50f9b60f);
+            
+        
+
+        circle_marker_b67492eea388d8db1a414460146e8bad.bindPopup(popup_0c3101a4c4c27dc7b6d56fad0c9fb14c)
+        ;
+
+        
+    
+    
+            circle_marker_b67492eea388d8db1a414460146e8bad.bindTooltip(
+                `<div>
+                     Frazer Town | Rank #12 | Score 0.413
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            var circle_marker_b66d7dea0a94e8a810f71f00c93e8829 = L.circleMarker(
+                [13.012, 77.638],
+                {"bubblingMouseEvents": true, "color": "#3b82f6", "dashArray": null, "dashOffset": null, "fill": true, "fillColor": "#3b82f6", "fillOpacity": 0.85, "fillRule": "evenodd", "lineCap": "round", "lineJoin": "round", "opacity": 1.0, "radius": 6, "stroke": true, "weight": 3}
+            ).addTo(map_c848c38924a855d8e7f3dcb92f02ddbe);
+        
+    
+        var popup_bdacea6d19036aabcf6c2f7f242f1df4 = L.popup({
+  "maxWidth": 240,
+});
+
+        
+            
+                var html_1d2d0ea87a4d2c669c3f6b36fbb927f6 = $(`<div id="html_1d2d0ea87a4d2c669c3f6b36fbb927f6" style="width: 100.0%; height: 100.0%;"><div style='font-family:sans-serif;min-width:180px;padding:4px'><b style='font-size:1.05em;color:#1e293b'>Kammanahalli Main Road</b><hr style='margin:6px 0;border-color:#e2e8f0'><table style='font-size:0.85em;width:100%'><tr><td><b>Lat / Lon</b></td><td>13.012, 77.638</td></tr><tr><td><b>AHP Score</b></td><td>0.493</td></tr><tr><td><b>Demand</b></td><td>0.305</td></tr><tr><td><b>Final Score</b></td><td><b style='color:#16a34a'>0.376</b></td></tr><tr><td><b>Rank</b></td><td><b>#13</b></td></tr></table></div></div>`)[0];
+                popup_bdacea6d19036aabcf6c2f7f242f1df4.setContent(html_1d2d0ea87a4d2c669c3f6b36fbb927f6);
+            
+        
+
+        circle_marker_b66d7dea0a94e8a810f71f00c93e8829.bindPopup(popup_bdacea6d19036aabcf6c2f7f242f1df4)
+        ;
+
+        
+    
+    
+            circle_marker_b66d7dea0a94e8a810f71f00c93e8829.bindTooltip(
+                `<div>
+                     Kammanahalli Main Road | Rank #13 | Score 0.376
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            var circle_marker_14d3f3a66d5d7b3ae19abc3cbe146ef2 = L.circleMarker(
+                [12.981, 77.621],
+                {"bubblingMouseEvents": true, "color": "#3b82f6", "dashArray": null, "dashOffset": null, "fill": true, "fillColor": "#3b82f6", "fillOpacity": 0.85, "fillRule": "evenodd", "lineCap": "round", "lineJoin": "round", "opacity": 1.0, "radius": 6, "stroke": true, "weight": 3}
+            ).addTo(map_c848c38924a855d8e7f3dcb92f02ddbe);
+        
+    
+        var popup_98d2b6b0382816da4c360184599ad951 = L.popup({
+  "maxWidth": 240,
+});
+
+        
+            
+                var html_df8213b631881c9817946a0cab9bbef0 = $(`<div id="html_df8213b631881c9817946a0cab9bbef0" style="width: 100.0%; height: 100.0%;"><div style='font-family:sans-serif;min-width:180px;padding:4px'><b style='font-size:1.05em;color:#1e293b'>Ulsoor Lake Area</b><hr style='margin:6px 0;border-color:#e2e8f0'><table style='font-size:0.85em;width:100%'><tr><td><b>Lat / Lon</b></td><td>12.981, 77.621</td></tr><tr><td><b>AHP Score</b></td><td>0.393</td></tr><tr><td><b>Demand</b></td><td>0.586</td></tr><tr><td><b>Final Score</b></td><td><b style='color:#16a34a'>0.373</b></td></tr><tr><td><b>Rank</b></td><td><b>#14</b></td></tr></table></div></div>`)[0];
+                popup_98d2b6b0382816da4c360184599ad951.setContent(html_df8213b631881c9817946a0cab9bbef0);
+            
+        
+
+        circle_marker_14d3f3a66d5d7b3ae19abc3cbe146ef2.bindPopup(popup_98d2b6b0382816da4c360184599ad951)
+        ;
+
+        
+    
+    
+            circle_marker_14d3f3a66d5d7b3ae19abc3cbe146ef2.bindTooltip(
+                `<div>
+                     Ulsoor Lake Area | Rank #14 | Score 0.373
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+    
+            var circle_marker_ac60356dcf8ec1813faf261fe0a95ac3 = L.circleMarker(
+                [13.045, 77.605],
+                {"bubblingMouseEvents": true, "color": "#3b82f6", "dashArray": null, "dashOffset": null, "fill": true, "fillColor": "#3b82f6", "fillOpacity": 0.85, "fillRule": "evenodd", "lineCap": "round", "lineJoin": "round", "opacity": 1.0, "radius": 6, "stroke": true, "weight": 3}
+            ).addTo(map_c848c38924a855d8e7f3dcb92f02ddbe);
+        
+    
+        var popup_0b2ac62fbf256588ba23761efcd8835e = L.popup({
+  "maxWidth": 240,
+});
+
+        
+            
+                var html_2011592250b72268bba8693f5d13bbf7 = $(`<div id="html_2011592250b72268bba8693f5d13bbf7" style="width: 100.0%; height: 100.0%;"><div style='font-family:sans-serif;min-width:180px;padding:4px'><b style='font-size:1.05em;color:#1e293b'>Nagawara</b><hr style='margin:6px 0;border-color:#e2e8f0'><table style='font-size:0.85em;width:100%'><tr><td><b>Lat / Lon</b></td><td>13.045, 77.605</td></tr><tr><td><b>AHP Score</b></td><td>0.339</td></tr><tr><td><b>Demand</b></td><td>0.475</td></tr><tr><td><b>Final Score</b></td><td><b style='color:#16a34a'>0.333</b></td></tr><tr><td><b>Rank</b></td><td><b>#15</b></td></tr></table></div></div>`)[0];
+                popup_0b2ac62fbf256588ba23761efcd8835e.setContent(html_2011592250b72268bba8693f5d13bbf7);
+            
+        
+
+        circle_marker_ac60356dcf8ec1813faf261fe0a95ac3.bindPopup(popup_0b2ac62fbf256588ba23761efcd8835e)
+        ;
+
+        
+    
+    
+            circle_marker_ac60356dcf8ec1813faf261fe0a95ac3.bindTooltip(
+                `<div>
+                     Nagawara | Rank #15 | Score 0.333
+                 </div>`,
+                {
+  "sticky": true,
+}
+            );
+        
+</script>
+</html>

@@ -1,0 +1,958 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>EV Charging Site Selection — Bengaluru</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.datatables.net/1.13.7/css/jquery.dataTables.min.css">
+<link rel="stylesheet" href="https://cdn.datatables.net/buttons/2.4.2/css/buttons.dataTables.min.css">
+<script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/buttons/2.4.2/js/dataTables.buttons.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/pdfmake.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/vfs_fonts.js"></script>
+<script src="https://cdn.datatables.net/buttons/2.4.2/js/buttons.html5.min.js"></script>
+<script src="https://cdn.datatables.net/buttons/2.4.2/js/buttons.print.min.js"></script>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+body{font-family:'Inter',sans-serif;background:#0a0f1e;color:#f1f5f9;min-height:100vh;}
+
+/* ── HEADER ── */
+header{
+  background:linear-gradient(135deg,#0f172a 0%,#1e3a8a 50%,#0369a1 100%);
+  padding:20px 40px;
+  display:flex;align-items:center;gap:20px;
+  border-bottom:2px solid #1d4ed8;
+  position:sticky;top:0;z-index:2000;
+  box-shadow:0 4px 32px rgba(0,0,0,0.5);
+}
+.hdr-icon{font-size:2.8rem;filter:drop-shadow(0 0 12px #3b82f6);}
+.hdr-title{font-size:1.6rem;font-weight:900;letter-spacing:-0.5px;}
+.hdr-sub{font-size:0.82rem;color:#93c5fd;margin-top:2px;}
+.hdr-right{margin-left:auto;display:flex;align-items:center;gap:12px;}
+.live-pill{
+  display:flex;align-items:center;gap:8px;
+  background:rgba(16,185,129,0.15);border:1px solid #10b981;
+  border-radius:20px;padding:6px 14px;font-size:0.78rem;font-weight:700;color:#10b981;
+}
+.live-dot{width:8px;height:8px;background:#10b981;border-radius:50%;animation:blink 1.5s infinite;}
+@keyframes blink{0%,100%{opacity:1;}50%{opacity:0.3;}}
+.city-badge{
+  background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.2);
+  border-radius:20px;padding:6px 16px;font-size:0.82rem;font-weight:700;letter-spacing:1px;
+}
+
+/* ── LIVE METRICS BAR ── */
+.metrics-bar{
+  background:linear-gradient(90deg,#0f172a,#1e293b,#0f172a);
+  border-bottom:1px solid #1e3a8a;
+  padding:14px 40px;
+  display:flex;gap:0;overflow-x:auto;
+}
+.metric-item{
+  display:flex;align-items:center;gap:10px;
+  padding:0 28px;border-right:1px solid #1e3a8a;
+  flex-shrink:0;
+}
+.metric-item:first-child{padding-left:0;}
+.metric-item:last-child{border-right:none;}
+.metric-emoji{font-size:1.4rem;}
+.metric-label{font-size:0.68rem;color:#64748b;text-transform:uppercase;letter-spacing:1px;}
+.metric-val{font-size:1rem;font-weight:800;color:#e2e8f0;}
+
+/* ── TABS ── */
+.tab-nav{
+  background:#0f172a;border-bottom:2px solid #1e293b;
+  padding:0 40px;display:flex;gap:4px;
+}
+.tab-btn{
+  padding:16px 24px;font-size:0.88rem;font-weight:700;
+  color:#64748b;border:none;background:none;cursor:pointer;
+  border-bottom:3px solid transparent;margin-bottom:-2px;
+  transition:all 0.2s;display:flex;align-items:center;gap:8px;
+  letter-spacing:0.3px;
+}
+.tab-btn:hover{color:#93c5fd;}
+.tab-btn.active{color:#3b82f6;border-bottom-color:#3b82f6;}
+.tab-content{display:none;padding:32px 40px 48px;}
+.tab-content.active{display:block;}
+
+/* ── STAT CARDS ── */
+.stats-row{display:grid;grid-template-columns:repeat(4,1fr);gap:20px;margin-bottom:32px;}
+.stat-card{
+  background:linear-gradient(135deg,#111827,#1f2937);
+  border:1px solid #1e3a8a;border-radius:16px;padding:24px;
+  position:relative;overflow:hidden;transition:transform 0.2s,box-shadow 0.2s;
+}
+.stat-card:hover{transform:translateY(-4px);box-shadow:0 12px 32px rgba(59,130,246,0.2);}
+.stat-card::before{
+  content:'';position:absolute;top:0;left:0;right:0;height:3px;
+  background:var(--c,#3b82f6);
+}
+.stat-card .ico{position:absolute;right:20px;top:20px;font-size:2.4rem;opacity:0.1;}
+.stat-card .lbl{font-size:0.72rem;color:#64748b;text-transform:uppercase;letter-spacing:1.2px;font-weight:700;margin-bottom:10px;}
+.stat-card .val{font-size:2.2rem;font-weight:900;background:linear-gradient(135deg,#3b82f6,#10b981);-webkit-background-clip:text;-webkit-text-fill-color:transparent;}
+.stat-card .sub{font-size:0.78rem;color:#64748b;margin-top:6px;}
+
+/* ── SECTION HEADER ── */
+.sec-hdr{display:flex;align-items:center;gap:12px;margin-bottom:20px;}
+.sec-hdr h2{font-size:1.2rem;font-weight:800;}
+.sec-hdr p{font-size:0.82rem;color:#64748b;margin-left:auto;}
+
+/* ── TABLE CONTAINER ── */
+.tbl-wrap{
+  background:#111827;border:1px solid #1e293b;border-radius:16px;overflow:hidden;
+}
+.tbl-hdr{
+  padding:20px 24px;background:#1f2937;border-bottom:1px solid #1e293b;
+}
+.tbl-hdr h3{font-size:1rem;font-weight:800;margin-bottom:4px;}
+.tbl-hdr p{font-size:0.78rem;color:#64748b;}
+.dataTables_wrapper{padding:20px 24px;background:#111827;}
+.dataTables_filter input,.dataTables_length select{
+  background:#1f2937!important;border:1px solid #374151!important;
+  color:#f1f5f9!important;padding:7px 12px!important;border-radius:8px!important;
+}
+.dataTables_info,.dataTables_length label,.dataTables_filter label{color:#64748b!important;font-size:0.82rem!important;}
+table.dataTable{width:100%!important;background:#111827;color:#f1f5f9;}
+table.dataTable thead th{
+  background:#1f2937!important;color:#64748b!important;font-weight:700!important;
+  text-transform:uppercase;letter-spacing:0.8px;font-size:0.72rem!important;
+  padding:14px 16px!important;border-bottom:2px solid #374151!important;
+}
+table.dataTable tbody tr{background:#111827!important;border-bottom:1px solid #1e293b!important;transition:background 0.15s;}
+table.dataTable tbody tr:hover{background:#1f2937!important;}
+table.dataTable tbody td{padding:14px 16px!important;color:#f1f5f9!important;font-size:0.88rem;}
+.dt-button{
+  background:linear-gradient(135deg,#1d4ed8,#2563eb)!important;color:#fff!important;
+  border:none!important;padding:8px 16px!important;border-radius:8px!important;
+  font-weight:600!important;font-size:0.8rem!important;margin-right:6px!important;
+}
+.paginate_button{
+  background:#1f2937!important;color:#f1f5f9!important;
+  border:1px solid #374151!important;border-radius:6px!important;
+  padding:6px 12px!important;margin:0 2px!important;font-size:0.82rem!important;
+}
+.paginate_button.current{background:#1d4ed8!important;border-color:#1d4ed8!important;}
+.rank-badge{display:inline-block;padding:4px 10px;border-radius:8px;font-weight:800;font-size:0.8rem;color:#fff;}
+.site-name-cell{font-weight:700;color:#60a5fa;}
+.bar-wrap{display:flex;align-items:center;gap:8px;}
+.bar-bg{height:6px;border-radius:3px;background:#1e293b;flex:1;max-width:80px;overflow:hidden;}
+.bar-fill{height:100%;border-radius:3px;background:linear-gradient(90deg,#3b82f6,#10b981);}
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<header>
+  <div class="hdr-icon">⚡</div>
+  <div>
+    <div class="hdr-title">EV Charging Site Selection</div>
+    <div class="hdr-sub">AI-Powered · Real-Time Data · 5 APIs Active</div>
+  </div>
+  <div class="hdr-right">
+    <div class="live-pill"><div class="live-dot"></div>LIVE</div>
+    <div class="city-badge">🏙 BENGALURU</div>
+  </div>
+</header>
+
+<!-- LIVE METRICS BAR -->
+<div class="metrics-bar">
+  <div class="metric-item"><div class="metric-emoji">🚗</div><div><div class="metric-label">Traffic Speed</div><div class="metric-val">23.4 km/h</div></div></div>
+  <div class="metric-item"><div class="metric-emoji">☀️</div><div><div class="metric-label">Temperature</div><div class="metric-val">34.6°C</div></div></div>
+  <div class="metric-item"><div class="metric-emoji">🌬️</div><div><div class="metric-label">Air Quality</div><div class="metric-val">AQI {ev_stations_count}</div></div></div>
+  <div class="metric-item"><div class="metric-emoji">🔌</div><div><div class="metric-label">EV Stations</div><div class="metric-val">{ev_stations_count} Active</div></div></div>
+  <div class="metric-item"><div class="metric-emoji">📍</div><div><div class="metric-label">Sites Analyzed</div><div class="metric-val">{total}</div></div></div>
+  <div class="metric-item"><div class="metric-emoji">🏆</div><div><div class="metric-label">Top Site</div><div class="metric-val">{top1_site_id}</div></div></div>
+  <div class="metric-item"><div class="metric-emoji">🤖</div><div><div class="metric-label">ML Accuracy</div><div class="metric-val">{r2} R²</div></div></div>
+</div>
+
+<!-- TAB NAV -->
+<div class="tab-nav">
+  <button class="tab-btn active" onclick="switchTab('overview',this)">📊 Overview</button>
+  <button class="tab-btn" onclick="switchTab('nearby',this)">🗺️ Nearby EV Stations</button>
+  <button class="tab-btn" onclick="switchTab('top',this)">🏆 Top Recommended Sites</button>
+  <button class="tab-btn" onclick="switchTab('opportunity',this)">💡 New Opportunities</button>
+</div>
+
+<!-- ═══════════════════════════════════════════════
+     TAB 1 — OVERVIEW
+═══════════════════════════════════════════════ -->
+<div id="tab-overview" class="tab-content active">
+
+  <div class="stats-row">
+    <div class="stat-card" style="--c:#3b82f6">
+      <div class="ico">📍</div>
+      <div class="lbl">Total Sites</div>
+      <div class="val">{total}</div>
+      <div class="sub">Analyzed locations</div>
+    </div>
+    <div class="stat-card" style="--c:#f59e0b">
+      <div class="ico">🏆</div>
+      <div class="lbl">Top Site</div>
+      <div class="val" style="font-size:1.3rem">{top1_site_id}</div>
+      <div class="sub">Score: {top1_score}</div>
+    </div>
+    <div class="stat-card" style="--c:#10b981">
+      <div class="ico">⚡</div>
+      <div class="lbl">Avg Score</div>
+      <div class="val">{avg_score}</div>
+      <div class="sub">All sites average</div>
+    </div>
+    <div class="stat-card" style="--c:#8b5cf6">
+      <div class="ico">🤖</div>
+      <div class="lbl">ML Accuracy</div>
+      <div class="val">{r2}</div>
+      <div class="sub">R² Score</div>
+    </div>
+  </div>
+
+  <div class="tbl-wrap">
+    <div class="tbl-hdr">
+      <h3>📋 All EV Charging Candidate Sites</h3>
+      <p>Search · Sort · Filter · Export — powered by real-time data from 5 APIs</p>
+    </div>
+    <table id="overviewTable" class="display" style="width:100%">
+      <thead><tr>
+        <th>Rank</th><th>Site Name</th><th>AHP Score</th>
+        <th>Demand</th><th>Competition</th><th>Nearest (km)</th><th>Final Score</th>
+      </tr></thead>
+      <tbody></tbody>
+    </table>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════════
+     TAB 2 — NEARBY EV STATIONS (map injected next)
+═══════════════════════════════════════════════ -->
+<div id="tab-nearby" class="tab-content"></div>
+
+<!-- ═══════════════════════════════════════════════
+     TAB 3 — TOP RECOMMENDED SITES
+═══════════════════════════════════════════════ -->
+<div id="tab-top" class="tab-content"></div>
+
+<!-- ═══════════════════════════════════════════════
+     TAB 4 — NEW OPPORTUNITIES
+═══════════════════════════════════════════════ -->
+<div id="tab-opportunity" class="tab-content"></div>
+
+<!-- ═══ DATA ═══ -->
+<script>
+const SITES = SITES_JSON_PLACEHOLDER;
+
+// existing OCM stations (name, lat, lon, num_points)
+const OCM_STATIONS = [
+  {name:"Ather Grid - Patel's Inn",lat:13.0212,lon:77.5980,pts:1},
+  {name:"Ather Grid - Sunny Side Bistro",lat:13.0018,lon:77.6235,pts:1},
+  {name:"Ather Grid - Moto Store & Cafe",lat:12.9876,lon:77.6209,pts:1},
+  {name:"Ather Grid - 6000 Miles",lat:12.9757,lon:77.5982,pts:1},
+  {name:"Hotel Southern Star",lat:12.9747,lon:77.5994,pts:1},
+  {name:"Sundaram Motors",lat:12.9738,lon:77.5960,pts:1},
+  {name:"BESCOM Head Office",lat:12.9755,lon:77.5883,pts:1},
+  {name:"BMW Navnit Motors",lat:12.9726,lon:77.5991,pts:1},
+  {name:"Renaissance Hotel",lat:12.9844,lon:77.5764,pts:1},
+  {name:"Freedom Park",lat:12.9786,lon:77.5814,pts:1},
+  {name:"JW Marriott",lat:12.9723,lon:77.5949,pts:1},
+  {name:"Forum Rex Walk",lat:12.9725,lon:77.6069,pts:4},
+  {name:"Vivanta by Taj",lat:12.9725,lon:77.6085,pts:1},
+  {name:"RMZ Millenia",lat:12.9825,lon:77.6246,pts:1},
+  {name:"Audi Central",lat:12.9700,lon:77.6005,pts:1},
+  {name:"The Rialto Hotel",lat:12.9803,lon:77.5766,pts:1},
+  {name:"Radisson City Center",lat:12.9762,lon:77.6195,pts:1},
+  {name:"Orion Avenue",lat:13.0011,lon:77.6325,pts:2},
+  {name:"The Park Hotel",lat:12.9739,lon:77.6199,pts:1},
+  {name:"The Oberoi",lat:12.9728,lon:77.6184,pts:1},
+  {name:"Taj MG Road",lat:12.9733,lon:77.6196,pts:1},
+  {name:"ITC Gardenia",lat:12.9673,lon:77.5955,pts:1},
+  {name:"ibis City Centre",lat:12.9675,lon:77.5939,pts:1},
+  {name:"Welcomhotel Richmond",lat:12.9687,lon:77.6144,pts:1},
+  {name:"Global Mall Okalipuram",lat:12.9821,lon:77.5632,pts:1},
+  {name:"Ather Grid - Chapter One",lat:13.0323,lon:77.5697,pts:1},
+  {name:"Adishakti Cars Hebbal",lat:13.0429,lon:77.6093,pts:1},
+  {name:"Orion Mall Outside",lat:13.0096,lon:77.5546,pts:4},
+  {name:"Orion Brigade Gateway",lat:13.0111,lon:77.5547,pts:2},
+  {name:"Sheraton Grand Brigade",lat:13.0128,lon:77.5550,pts:1},
+  {name:"Ather Space",lat:12.9757,lon:77.6412,pts:4},
+  {name:"Lithium Charging Station",lat:13.0149,lon:77.6462,pts:1},
+  {name:"Sixth Gear Cars",lat:13.0468,lon:77.5912,pts:1},
+  {name:"Prerana Motors Rajaji",lat:12.9994,lon:77.5497,pts:1},
+  {name:"Elements Mall",lat:13.0461,lon:77.6269,pts:3},
+  {name:"GT World Mall",lat:12.9740,lon:77.5516,pts:1},
+  {name:"Shell Recharge Yeshwantpur",lat:13.0250,lon:77.5476,pts:5},
+  {name:"Shell Recharge Old Madras",lat:12.9923,lon:77.6594,pts:1},
+  {name:"RMZ Infinity",lat:12.9937,lon:77.6605,pts:1},
+  {name:"Gokulam Grand Hotel",lat:13.0420,lon:77.5547,pts:1},
+  {name:"Tata Fast Charger",lat:12.9524,lon:77.6397,pts:2},
+  {name:"Shell Recharge Thanisandra",lat:13.0537,lon:77.6307,pts:1},
+  {name:"Divyashree Greens",lat:12.9527,lon:77.6409,pts:1},
+  {name:"MEI EV Charging Hub",lat:13.0268,lon:77.5426,pts:1},
+  {name:"Taj Yeshwantpur",lat:13.0288,lon:77.5403,pts:2},
+  {name:"Nexus Mall Koramangala",lat:12.9348,lon:77.6118,pts:1},
+  {name:"Shell Recharge Hennur",lat:13.0537,lon:77.6307,pts:1},
+  {name:"AtherGrid Go Native Cafe",lat:12.9250,lon:77.5833,pts:1},
+  {name:"Carzonrent",lat:12.9745,lon:77.6215,pts:1},
+  {name:"Divyasree Chambers",lat:12.9619,lon:77.5992,pts:1}
+];
+</script>
+
+<!-- ═══ TAB SWITCHING ═══ -->
+<script>
+function switchTab(id, btn) {
+  document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('tab-' + id).classList.add('active');
+  btn.classList.add('active');
+  if (id === 'nearby' && !window._nearbyBuilt) { buildNearbyTab(); window._nearbyBuilt = true; }
+  if (id === 'top'    && !window._topBuilt)    { buildTopTab();    window._topBuilt    = true; }
+  if (id === 'opportunity' && !window._oppBuilt) { buildOppTab(); window._oppBuilt = true; }
+}
+</script>
+
+<!-- ═══ TAB 1 — OVERVIEW TABLE INIT ═══ -->
+<script>
+$(document).ready(function(){
+  $('#overviewTable').DataTable({
+    data: SITES,
+    columns:[
+      {data:'final_rank', render: d => {
+        const c = d<=3?'#f59e0b':d<=7?'#3b82f6':'#475569';
+        return `<span class="rank-badge" style="background:${c}">#${d}</span>`;
+      }},
+      {data:'site_id', render: d => `<span class="site-name-cell">${d}</span>`},
+      {data:'ahp_score', render: d => `<div class="bar-wrap"><div class="bar-bg"><div class="bar-fill" style="width:${d*100}%"></div></div><span style="font-size:0.82rem;font-weight:700">${d.toFixed(3)}</span></div>`},
+      {data:'predicted_demand', render: d => `<div class="bar-wrap"><div class="bar-bg"><div class="bar-fill" style="width:${d*100}%;background:linear-gradient(90deg,#10b981,#06b6d4)"></div></div><span style="font-size:0.82rem;font-weight:700">${d.toFixed(3)}</span></div>`},
+      {data:'competition_score', render: d => {
+        const c = d>=0.4?'#10b981':d>=0.2?'#f59e0b':'#ef4444';
+        return `<span style="color:${c};font-weight:700">${(d||0).toFixed(3)}</span>`;
+      }},
+      {data:'nearest_competitor_km', render: d => `<span style="font-weight:600">${(d||0).toFixed(2)} km</span>`},
+      {data:'final_score', render: d => {
+        const c = d>=0.6?'#10b981':d>=0.5?'#f59e0b':'#ef4444';
+        return `<span style="color:${c};font-weight:900;font-size:1rem">${d.toFixed(3)}</span>`;
+      }}
+    ],
+    order:[[0,'asc']], pageLength:15,
+    lengthMenu:[[10,15,25,-1],[10,15,25,'All']],
+    dom:'Bfrtip',
+    buttons:[
+      {extend:'csv',text:'📄 CSV'},
+      {extend:'excel',text:'📊 Excel'},
+      {extend:'pdf',text:'📕 PDF'},
+      {extend:'print',text:'🖨️ Print'}
+    ],
+    language:{search:'🔍 Search:',lengthMenu:'Show _MENU_',info:'_START_–_END_ of _TOTAL_ sites'}
+  });
+});
+</script>
+
+<!-- ═══ TAB 2 — NEARBY EV STATIONS ═══ -->
+<script>
+function buildNearbyTab() {
+  const el = document.getElementById('tab-nearby');
+  el.innerHTML = `
+  <style>
+    #nearby-layout{display:grid;grid-template-columns:1fr 380px;gap:24px;height:calc(100vh - 260px);min-height:520px;}
+    #map-wrap{border-radius:16px;overflow:hidden;border:1px solid #1e3a8a;position:relative;}
+    #nearbyMap{width:100%;height:100%;}
+    #nearby-panel{display:flex;flex-direction:column;gap:16px;overflow:hidden;}
+    .search-box{background:#111827;border:1px solid #1e3a8a;border-radius:14px;padding:18px;}
+    .search-box h3{font-size:0.95rem;font-weight:800;margin-bottom:14px;color:#93c5fd;}
+    .search-row{display:flex;gap:8px;margin-bottom:10px;}
+    .search-row input{
+      flex:1;background:#1f2937;border:1px solid #374151;border-radius:8px;
+      color:#f1f5f9;padding:9px 12px;font-size:0.85rem;outline:none;font-family:inherit;
+    }
+    .search-row input:focus{border-color:#3b82f6;}
+    .search-row select{
+      background:#1f2937;border:1px solid #374151;border-radius:8px;
+      color:#f1f5f9;padding:9px 10px;font-size:0.82rem;cursor:pointer;
+    }
+    .search-btn{
+      background:linear-gradient(135deg,#1d4ed8,#2563eb);color:#fff;
+      border:none;border-radius:8px;padding:9px 18px;font-weight:700;
+      font-size:0.85rem;cursor:pointer;white-space:nowrap;transition:opacity 0.2s;
+    }
+    .search-btn:hover{opacity:0.85;}
+    .legend-row{display:flex;gap:14px;flex-wrap:wrap;}
+    .legend-item{display:flex;align-items:center;gap:6px;font-size:0.75rem;color:#94a3b8;}
+    .legend-dot{width:10px;height:10px;border-radius:50%;}
+    #results-box{
+      background:#111827;border:1px solid #1e293b;border-radius:14px;
+      flex:1;overflow:hidden;display:flex;flex-direction:column;min-height:0;
+    }
+    #results-hdr{
+      padding:14px 18px;background:#1f2937;border-bottom:1px solid #1e293b;
+      font-size:0.85rem;font-weight:700;display:flex;justify-content:space-between;align-items:center;
+      flex-shrink:0;
+    }
+    #results-list{overflow-y:auto;flex:1;min-height:0;}
+    .result-card{
+      padding:14px 18px;border-bottom:1px solid #1e293b;cursor:pointer;transition:background 0.15s;
+    }
+    .result-card:hover{background:#1f2937;}
+    .rc-top{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:6px;}
+    .rc-name{font-weight:700;font-size:0.88rem;color:#60a5fa;}
+    .rc-dist{font-size:0.75rem;background:#1e3a8a;color:#93c5fd;padding:2px 8px;border-radius:6px;font-weight:700;}
+    .rc-addr{font-size:0.75rem;color:#64748b;margin-bottom:6px;}
+    .rc-pills{display:flex;gap:6px;flex-wrap:wrap;}
+    .pill{font-size:0.7rem;padding:2px 8px;border-radius:6px;font-weight:600;}
+    .pill-green{background:rgba(16,185,129,0.15);color:#10b981;border:1px solid rgba(16,185,129,0.3);}
+    .pill-blue{background:rgba(59,130,246,0.15);color:#60a5fa;border:1px solid rgba(59,130,246,0.3);}
+    .pill-amber{background:rgba(245,158,11,0.15);color:#fbbf24;border:1px solid rgba(245,158,11,0.3);}
+    #nearby-status{
+      padding:8px 14px;background:rgba(59,130,246,0.1);border:1px solid #1e3a8a;
+      border-radius:8px;font-size:0.8rem;color:#93c5fd;display:none;
+    }
+    .rec-section{margin-top:16px;}
+    .rec-section h4{font-size:0.82rem;font-weight:800;color:#f59e0b;margin-bottom:10px;text-transform:uppercase;letter-spacing:0.8px;}
+    .rec-card{
+      background:#1f2937;border:1px solid #374151;border-radius:10px;
+      padding:12px 14px;margin-bottom:8px;cursor:pointer;transition:border-color 0.2s;
+    }
+    .rec-card:hover{border-color:#3b82f6;}
+    .rec-card-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;}
+    .rec-card-name{font-weight:700;font-size:0.85rem;color:#e2e8f0;}
+    .rec-score{font-size:0.8rem;font-weight:800;color:#10b981;}
+    .rec-card-sub{font-size:0.75rem;color:#64748b;}
+  </style>
+
+  <div id="nearby-layout">
+    <div id="map-wrap">
+      <div id="nearbyMap"></div>
+    </div>
+    <div id="nearby-panel">
+      <div class="search-box">
+        <h3>🔍 Search Area</h3>
+        <div class="search-row">
+          <input id="nb-input" type="text" placeholder="e.g. Koramangala, Whitefield…" onkeydown="if(event.key==='Enter')nbSearch()"/>
+          <select id="nb-radius">
+            <option value="2">2 km</option>
+            <option value="5" selected>5 km</option>
+            <option value="10">10 km</option>
+          </select>
+        </div>
+        <button class="search-btn" onclick="nbSearch()" style="width:100%">🔍 Find Nearby EV Stations</button>
+        <div id="nearby-status" style="margin-top:10px"></div>
+        <div class="legend-row" style="margin-top:14px">
+          <div class="legend-item"><div class="legend-dot" style="background:#ef4444"></div>Existing EV Station</div>
+          <div class="legend-item"><div class="legend-dot" style="background:#3b82f6"></div>Suggested New Site</div>
+          <div class="legend-item"><div class="legend-dot" style="background:#f59e0b;border:2px solid #fff"></div>Top 5 Best Site</div>
+        </div>
+      </div>
+      <div id="results-box">
+        <div id="results-hdr">
+          <span id="results-title">📍 All EV Stations in Bengaluru</span>
+          <span id="results-count" style="color:#64748b;font-size:0.78rem"></span>
+        </div>
+        <div id="dropdown-slot" style="padding:10px 14px;border-bottom:1px solid #1e293b;display:none"></div>
+        <div id="results-list"></div>
+      </div>
+    </div>
+  </div>`;
+
+  // Init Leaflet map
+  const map = L.map('nearbyMap').setView([12.9716, 77.5946], 12);
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
+    {attribution:'© OpenStreetMap © CARTO',maxZoom:19}).addTo(map);
+  window._nbMap = map;
+
+  // Plot all OCM stations — store markers in array indexed same as OCM_STATIONS
+  window._ocmMarkers = [];
+  OCM_STATIONS.forEach((s, i) => {
+    const m = L.circleMarker([s.lat, s.lon], {
+      radius:7, color:'#ef4444', fillColor:'#ef4444', fillOpacity:0.85, weight:2
+    }).addTo(map);
+    m.bindPopup(
+      `<div style="font-family:sans-serif;padding:6px;min-width:180px">`+
+      `<div style="font-weight:800;font-size:0.95rem;color:#1e3a8a;margin-bottom:4px">${s.name}</div>`+
+      `<div style="color:#374151;font-size:0.82rem">🔌 <b>${s.pts}</b> charging point(s)</div>`+
+      `<div style="color:#6b7280;font-size:0.75rem;margin-top:4px">📍 ${s.lat.toFixed(4)}, ${s.lon.toFixed(4)}</div>`+
+      `<div style="margin-top:6px;display:inline-block;background:#dcfce7;color:#166534;border-radius:4px;padding:2px 8px;font-size:0.72rem;font-weight:700">✅ Active</div>`+
+      `</div>`
+    );
+    window._ocmMarkers.push({marker: m, data: s});
+  });
+
+  // Plot candidate sites
+  SITES.forEach(s => {
+    const isTop = s.final_rank <= 5;
+    const color = isTop ? '#f59e0b' : '#3b82f6';
+    const r = isTop ? 10 : 7;
+    L.circleMarker([s.latitude, s.longitude], {
+      radius:r, color:color, fillColor:color, fillOpacity:0.9, weight:isTop?3:2
+    }).addTo(map).bindPopup(
+      `<div style="font-family:sans-serif;min-width:160px;padding:4px">
+        <b style="color:#1e3a8a;font-size:0.95rem">${s.site_id}</b>
+        ${isTop ? '<br><span style="color:#d97706;font-weight:700">⭐ Top 5 Recommended</span>' : ''}
+        <hr style="margin:6px 0;border-color:#e2e8f0">
+        <span style="color:#374151"><b>Rank:</b> #${s.final_rank}</span><br>
+        <span style="color:#374151"><b>Score:</b> ${s.final_score.toFixed(3)}</span><br>
+        <span style="color:#374151"><b>Demand:</b> ${s.predicted_demand.toFixed(3)}</span><br>
+        <span style="color:#374151"><b>Competition:</b> ${(s.competition_score||0).toFixed(3)}</span>
+      </div>`
+    );
+  });
+
+  // Render default list
+  renderOCMList(OCM_STATIONS, null, null);
+}
+
+function flyToStation(idx) {
+  const entry = window._ocmMarkers[idx];
+  if (!entry) { console.warn('No marker at idx', idx); return; }
+  window._nbMap.setView([entry.data.lat, entry.data.lon], 17);
+  setTimeout(() => entry.marker.openPopup(), 400);
+}
+
+function toggleStationsDropdown() {
+  const list = document.getElementById('stations-expanded');
+  const arrow = document.getElementById('dropdown-arrow');
+  if (!list) return;
+  const isHidden = list.style.display === 'none';
+  list.style.display = isHidden ? 'block' : 'none';
+  if (arrow) arrow.textContent = isHidden ? '▲' : '▼';
+}
+
+function renderOCMList(stations, searchLat, searchLon) {
+  const slot = document.getElementById('dropdown-slot');
+  const list = document.getElementById('results-list');
+
+  if (!stations.length) {
+    document.getElementById('results-count').textContent = '0 station(s)';
+    slot.style.display = 'none';
+    list.innerHTML = `<div style="padding:24px;text-align:center;color:#64748b">
+      <div style="font-size:2rem">🔌</div>
+      <div style="margin-top:8px">No stations found. Try a larger radius.</div>
+    </div>`;
+    return;
+  }
+
+  const hasDist = searchLat !== null && searchLon !== null;
+  const enriched = stations.map(s => ({
+    ...s,
+    dist: hasDist ? haversine(searchLat, searchLon, s.lat, s.lon) : null,
+    idx:  OCM_STATIONS.findIndex(o => o.lat === s.lat && o.lon === s.lon)
+  }));
+
+  document.getElementById('results-count').textContent = enriched.length + ' station(s)';
+  const radius = document.getElementById('nb-radius').value;
+
+  // Build dropdown button + expanded list together in slot
+  slot.style.display = 'block';
+  slot.innerHTML =
+    `<div onclick="toggleStationsDropdown()"
+       style="display:flex;align-items:center;justify-content:space-between;
+              background:#1f2937;border:1px solid #374151;border-radius:10px;
+              padding:11px 16px;cursor:pointer;user-select:none;"
+       onmouseenter="this.style.borderColor='#3b82f6'"
+       onmouseleave="this.style.borderColor='#374151'">
+      <div style="display:flex;align-items:center;gap:10px">
+        <span>🔌</span>
+        <span style="font-weight:700;font-size:0.88rem;color:#e2e8f0">${enriched.length} Nearby Station${enriched.length>1?'s':''}</span>
+        <span style="background:rgba(59,130,246,0.2);color:#60a5fa;border-radius:5px;padding:2px 8px;font-size:0.72rem;font-weight:700">within ${radius} km</span>
+      </div>
+      <span id="dropdown-arrow" style="color:#94a3b8;font-size:0.85rem">▼</span>
+    </div>
+    <div id="stations-expanded" style="display:none;margin-top:6px;max-height:280px;overflow-y:auto;border:1px solid #374151;border-radius:10px;background:#0f172a">
+      ${enriched.map(s =>
+        `<div onclick="flyToStation(${s.idx})"
+           style="display:flex;align-items:center;justify-content:space-between;
+                  padding:12px 14px;border-bottom:1px solid #1e293b;cursor:pointer;"
+           onmouseenter="this.style.background='#1f2937'"
+           onmouseleave="this.style.background='transparent'">
+          <div style="flex:1;min-width:0">
+            <div style="font-weight:700;font-size:0.85rem;color:#60a5fa;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${s.name}</div>
+            <div style="font-size:0.72rem;color:#64748b;margin-top:2px">📍 ${s.lat.toFixed(4)}, ${s.lon.toFixed(4)}</div>
+            <div style="display:flex;gap:5px;margin-top:4px">
+              <span style="background:rgba(16,185,129,0.15);color:#34d399;border:1px solid rgba(16,185,129,0.3);border-radius:4px;padding:1px 6px;font-size:0.68rem;font-weight:600">🔌 ${s.pts} pt(s)</span>
+              <span style="background:rgba(59,130,246,0.15);color:#60a5fa;border:1px solid rgba(59,130,246,0.3);border-radius:4px;padding:1px 6px;font-size:0.68rem">Active</span>
+            </div>
+          </div>
+          ${s.dist !== null ? `<div style="text-align:right;flex-shrink:0;margin-left:10px">
+            <div style="font-size:1.05rem;font-weight:900;color:#f59e0b">${s.dist.toFixed(1)}</div>
+            <div style="font-size:0.65rem;color:#64748b">km</div>
+          </div>` : ''}
+        </div>`
+      ).join('')}
+    </div>`;
+
+  // clear old results-list content
+  list.innerHTML = '';
+}
+
+function renderRecommendations(lat, lon, radius) {
+  const nearby = SITES
+    .map(s => ({...s, dist: haversine(lat, lon, s.latitude, s.longitude)}))
+    .filter(s => s.dist <= radius * 2)
+    .sort((a,b) => a.final_rank - b.final_rank)
+    .slice(0, 4);
+  if (!nearby.length) return '';
+  return `<div class="rec-section">
+    <h4>⭐ Recommended Sites Nearby</h4>
+    ${nearby.map(s => `
+      <div class="rec-card" onclick="window._nbMap && window._nbMap.setView([${s.latitude},${s.longitude}],15)">
+        <div class="rec-card-top">
+          <div class="rec-card-name">${s.site_id}</div>
+          <div class="rec-score">${s.final_score.toFixed(3)}</div>
+        </div>
+        <div class="rec-card-sub">Rank #${s.final_rank} · ${s.dist.toFixed(1)} km away · Demand ${s.predicted_demand.toFixed(2)}</div>
+      </div>`).join('')}
+  </div>`;
+}
+
+async function nbSearch() {
+  const q = document.getElementById('nb-input').value.trim();
+  const radius = parseFloat(document.getElementById('nb-radius').value);
+  if (!q) return;
+  const status = document.getElementById('nearby-status');
+  status.style.display = 'block';
+  status.textContent = '🔍 Searching…';
+
+  try {
+    const url = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(q+', Bengaluru')}&format=json&limit=1`;
+    const res = await fetch(url, {headers:{'Accept-Language':'en'}});
+    const data = await res.json();
+    if (!data.length) { status.textContent = '❌ Location not found'; setTimeout(()=>status.style.display='none',3000); return; }
+
+    const lat = parseFloat(data[0].lat), lon = parseFloat(data[0].lon);
+    const name = data[0].display_name.split(',').slice(0,2).join(', ');
+    status.textContent = `✅ Found: ${name}`;
+    setTimeout(() => status.style.display='none', 2500);
+
+    const map = window._nbMap;
+    if (window._nbCircle) { map.removeLayer(window._nbCircle); map.removeLayer(window._nbPin); }
+    window._nbCircle = L.circle([lat,lon],{radius:radius*1000,color:'#3b82f6',fillOpacity:0.06,dashArray:'8 4'}).addTo(map);
+    window._nbPin = L.marker([lat,lon],{icon:L.divIcon({
+      html:`<div style="background:#3b82f6;color:#fff;border-radius:50%;width:26px;height:26px;display:flex;align-items:center;justify-content:center;font-size:13px;border:2px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,0.4)">📍</div>`,
+      iconSize:[26,26],iconAnchor:[13,13],className:''
+    })}).addTo(map);
+    map.setView([lat,lon],14);
+
+    const nearbyOCM = OCM_STATIONS
+      .map(s => ({...s, dist: haversine(lat,lon,s.lat,s.lon)}))
+      .filter(s => s.dist <= radius)
+      .sort((a,b) => a.dist - b.dist);
+
+    document.getElementById('results-title').textContent = `🔌 Stations within ${radius} km`;
+    renderOCMList(nearbyOCM, lat, lon);
+
+    // Remove old recommendations then append inside results-box
+    const oldRec = document.getElementById('rec-section-nb');
+    if (oldRec) oldRec.remove();
+    const recHTML = renderRecommendations(lat, lon, radius);
+    if (recHTML) {
+      const box = document.getElementById('results-box');
+      box.insertAdjacentHTML('beforeend', `<div id="rec-section-nb">${recHTML}</div>`);
+    }
+
+  } catch(e) {
+    status.textContent = '❌ Search failed'; setTimeout(()=>status.style.display='none',3000);
+  }
+}
+
+function haversine(lat1,lon1,lat2,lon2){
+  const R=6371, dLat=(lat2-lat1)*Math.PI/180, dLon=(lon2-lon1)*Math.PI/180;
+  const a=Math.sin(dLat/2)**2+Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*Math.sin(dLon/2)**2;
+  return R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a));
+}
+</script>
+
+<!-- ═══ TAB 3 — TOP RECOMMENDED SITES ═══ -->
+<script>
+function buildTopTab() {
+  const el = document.getElementById('tab-top');
+  const top10 = [...SITES].sort((a,b)=>a.final_rank-b.final_rank).slice(0,10);
+
+  const medals = ['🥇','🥈','🥉'];
+  const cards = top10.map((s,i) => {
+    const medal = medals[i] || `#${s.final_rank}`;
+    const scoreColor = s.final_score>=0.6?'#10b981':s.final_score>=0.5?'#f59e0b':'#ef4444';
+    const compColor  = (s.competition_score||0)>=0.4?'#10b981':(s.competition_score||0)>=0.2?'#f59e0b':'#ef4444';
+    const pct = Math.round(s.final_score*100);
+    return `
+    <div style="background:linear-gradient(135deg,#111827,#1f2937);border:1px solid ${i<3?'#f59e0b':'#1e3a8a'};
+         border-radius:16px;padding:24px;position:relative;overflow:hidden;transition:transform 0.2s,box-shadow 0.2s;"
+         onmouseenter="this.style.transform='translateY(-4px)';this.style.boxShadow='0 16px 40px rgba(0,0,0,0.4)'"
+         onmouseleave="this.style.transform='';this.style.boxShadow=''">
+      ${i<3?`<div style="position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(90deg,#f59e0b,#fcd34d)"></div>`:''}
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:16px">
+        <div>
+          <div style="font-size:1.6rem;margin-bottom:4px">${medal}</div>
+          <div style="font-size:1.05rem;font-weight:800;color:#e2e8f0">${s.site_id}</div>
+          <div style="font-size:0.75rem;color:#64748b;margin-top:2px">📍 ${s.latitude.toFixed(4)}, ${s.longitude.toFixed(4)}</div>
+        </div>
+        <div style="text-align:right">
+          <div style="font-size:2rem;font-weight:900;color:${scoreColor}">${s.final_score.toFixed(3)}</div>
+          <div style="font-size:0.7rem;color:#64748b;text-transform:uppercase;letter-spacing:1px">Final Score</div>
+        </div>
+      </div>
+      <div style="background:#0f172a;border-radius:8px;height:8px;margin-bottom:16px;overflow:hidden">
+        <div style="height:100%;width:${pct}%;background:linear-gradient(90deg,#3b82f6,#10b981);border-radius:8px;transition:width 1s ease"></div>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px">
+        <div style="background:#0f172a;border-radius:10px;padding:10px;text-align:center">
+          <div style="font-size:0.65rem;color:#64748b;text-transform:uppercase;letter-spacing:0.8px;margin-bottom:4px">AHP Score</div>
+          <div style="font-size:1rem;font-weight:800;color:#60a5fa">${s.ahp_score.toFixed(3)}</div>
+        </div>
+        <div style="background:#0f172a;border-radius:10px;padding:10px;text-align:center">
+          <div style="font-size:0.65rem;color:#64748b;text-transform:uppercase;letter-spacing:0.8px;margin-bottom:4px">Demand</div>
+          <div style="font-size:1rem;font-weight:800;color:#34d399">${s.predicted_demand.toFixed(3)}</div>
+        </div>
+        <div style="background:#0f172a;border-radius:10px;padding:10px;text-align:center">
+          <div style="font-size:0.65rem;color:#64748b;text-transform:uppercase;letter-spacing:0.8px;margin-bottom:4px">Competition</div>
+          <div style="font-size:1rem;font-weight:800;color:${compColor}">${(s.competition_score||0).toFixed(3)}</div>
+        </div>
+      </div>
+      <div style="margin-top:12px;display:flex;gap:8px;flex-wrap:wrap">
+        <span style="background:rgba(59,130,246,0.15);color:#60a5fa;border:1px solid rgba(59,130,246,0.3);
+              border-radius:6px;padding:3px 10px;font-size:0.72rem;font-weight:600">
+          🏁 Rank #${s.final_rank}
+        </span>
+        <span style="background:rgba(16,185,129,0.15);color:#34d399;border:1px solid rgba(16,185,129,0.3);
+              border-radius:6px;padding:3px 10px;font-size:0.72rem;font-weight:600">
+          📏 ${(s.nearest_competitor_km||0).toFixed(2)} km to competitor
+        </span>
+        ${s.final_score>=0.6?`<span style="background:rgba(245,158,11,0.15);color:#fbbf24;border:1px solid rgba(245,158,11,0.3);
+              border-radius:6px;padding:3px 10px;font-size:0.72rem;font-weight:600">⭐ Highly Recommended</span>`:''}
+      </div>
+    </div>`;
+  }).join('');
+
+  // Score comparison bar chart (pure CSS)
+  const barChart = top10.map((s,i) => {
+    const w = Math.round(s.final_score * 100);
+    const c = s.final_score>=0.6?'#10b981':s.final_score>=0.5?'#f59e0b':'#ef4444';
+    return `
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:10px">
+      <div style="width:160px;font-size:0.8rem;font-weight:600;color:#e2e8f0;text-align:right;flex-shrink:0">${s.site_id}</div>
+      <div style="flex:1;background:#1e293b;border-radius:4px;height:28px;overflow:hidden;position:relative">
+        <div style="height:100%;width:${w}%;background:linear-gradient(90deg,${c}88,${c});border-radius:4px;transition:width 1.2s ease;display:flex;align-items:center;padding-left:10px">
+          <span style="font-size:0.78rem;font-weight:800;color:#fff">${s.final_score.toFixed(3)}</span>
+        </div>
+      </div>
+      <div style="width:28px;height:28px;background:#1f2937;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:0.75rem;font-weight:800;color:#64748b;flex-shrink:0">#${i+1}</div>
+    </div>`;
+  }).join('');
+
+  el.innerHTML = `
+  <div style="display:grid;grid-template-columns:1fr 400px;gap:28px;align-items:start">
+    <div>
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:24px">
+        <div style="font-size:1.3rem;font-weight:900">🏆 Top 10 Recommended Sites</div>
+        <div style="font-size:0.78rem;color:#64748b;margin-left:auto">Ranked by AI composite score (AHP + ML + Competition)</div>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(2,1fr);gap:20px">${cards}</div>
+    </div>
+    <div style="position:sticky;top:20px">
+      <div style="background:#111827;border:1px solid #1e293b;border-radius:16px;padding:24px;margin-bottom:20px">
+        <div style="font-size:1rem;font-weight:800;margin-bottom:20px;color:#93c5fd">📊 Score Comparison</div>
+        ${barChart}
+      </div>
+      <div style="background:#111827;border:1px solid #1e293b;border-radius:16px;padding:24px">
+        <div style="font-size:1rem;font-weight:800;margin-bottom:16px;color:#93c5fd">🧮 Scoring Formula</div>
+        <div style="display:flex;flex-direction:column;gap:10px">
+          <div style="display:flex;justify-content:space-between;align-items:center;background:#0f172a;border-radius:8px;padding:10px 14px">
+            <span style="font-size:0.82rem;color:#e2e8f0">🏗 AHP Score</span>
+            <span style="font-size:1rem;font-weight:800;color:#3b82f6">50%</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;align-items:center;background:#0f172a;border-radius:8px;padding:10px 14px">
+            <span style="font-size:0.82rem;color:#e2e8f0">🤖 ML Demand</span>
+            <span style="font-size:1rem;font-weight:800;color:#10b981">30%</span>
+          </div>
+          <div style="display:flex;justify-content:space-between;align-items:center;background:#0f172a;border-radius:8px;padding:10px 14px">
+            <span style="font-size:0.82rem;color:#e2e8f0">🏁 Competition</span>
+            <span style="font-size:1rem;font-weight:800;color:#f59e0b">20%</span>
+          </div>
+        </div>
+        <div style="margin-top:16px;padding:12px;background:rgba(59,130,246,0.08);border:1px solid rgba(59,130,246,0.2);border-radius:8px;font-size:0.75rem;color:#93c5fd;line-height:1.6">
+          AHP weights: Roads 30.7% · Grid 20.8% · Population 13.4% · Traffic 11.1% · Commercial 12.7% · Land 6.9% · Environment 4.5%
+        </div>
+      </div>
+    </div>
+  </div>`;
+}
+</script>
+
+<!-- ═══ TAB 4 — NEW OPPORTUNITIES ═══ -->
+<script>
+function buildOppTab() {
+  const el = document.getElementById('tab-opportunity');
+
+  // Opportunity = high demand + low competition (competition_score > 0.3 means far from competitors)
+  const opps = [...SITES]
+    .map(s => ({
+      ...s,
+      opp_score: (s.predicted_demand * 0.5) + ((s.competition_score||0) * 0.3) + (s.ahp_score * 0.2)
+    }))
+    .sort((a,b) => b.opp_score - a.opp_score);
+
+  const highDemand  = [...SITES].sort((a,b)=>b.predicted_demand-a.predicted_demand).slice(0,5);
+  const lowComp     = [...SITES].filter(s=>(s.competition_score||0)>0.2).sort((a,b)=>(b.competition_score||0)-(a.competition_score||0)).slice(0,5);
+  const underserved = [...SITES].filter(s=>(s.nearest_competitor_km||0)>1.5).sort((a,b)=>(b.nearest_competitor_km||0)-(a.nearest_competitor_km||0)).slice(0,5);
+
+  function oppCard(s, highlight, badge, badgeColor) {
+    const val = highlight === 'demand' ? s.predicted_demand.toFixed(3)
+              : highlight === 'comp'   ? (s.competition_score||0).toFixed(3)
+              : (s.nearest_competitor_km||0).toFixed(2)+' km';
+    const valColor = highlight==='demand'?'#10b981':highlight==='comp'?'#f59e0b':'#8b5cf6';
+    return `
+    <div style="background:#111827;border:1px solid #1e293b;border-radius:12px;padding:16px;
+         transition:transform 0.2s,border-color 0.2s;cursor:default"
+         onmouseenter="this.style.transform='translateY(-3px)';this.style.borderColor='#3b82f6'"
+         onmouseleave="this.style.transform='';this.style.borderColor='#1e293b'">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:10px">
+        <div>
+          <span style="background:${badgeColor}22;color:${badgeColor};border:1px solid ${badgeColor}44;
+                border-radius:5px;padding:2px 8px;font-size:0.68rem;font-weight:700">${badge}</span>
+          <div style="font-size:0.92rem;font-weight:800;color:#e2e8f0;margin-top:6px">${s.site_id}</div>
+        </div>
+        <div style="font-size:1.4rem;font-weight:900;color:${valColor}">${val}</div>
+      </div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap">
+        <span style="font-size:0.7rem;color:#64748b;background:#1f2937;border-radius:5px;padding:2px 8px">Rank #${s.final_rank}</span>
+        <span style="font-size:0.7rem;color:#64748b;background:#1f2937;border-radius:5px;padding:2px 8px">Score ${s.final_score.toFixed(3)}</span>
+        <span style="font-size:0.7rem;color:#64748b;background:#1f2937;border-radius:5px;padding:2px 8px">AHP ${s.ahp_score.toFixed(3)}</span>
+      </div>
+    </div>`;
+  }
+
+  // Opportunity map
+  const oppMapId = 'oppMap';
+
+  el.innerHTML = `
+  <div style="margin-bottom:28px">
+    <div style="font-size:1.3rem;font-weight:900;margin-bottom:6px">💡 New Profitable Opportunities</div>
+    <div style="font-size:0.82rem;color:#64748b">Sites with high demand, low competition, and underserved areas — ideal for new EV charging installations</div>
+  </div>
+
+  <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:20px;margin-bottom:32px">
+    <!-- High Demand -->
+    <div style="background:#111827;border:1px solid #1e293b;border-radius:16px;overflow:hidden">
+      <div style="padding:16px 20px;background:linear-gradient(135deg,#064e3b,#065f46);border-bottom:1px solid #1e293b">
+        <div style="font-size:0.95rem;font-weight:800;color:#34d399">📈 High Demand Areas</div>
+        <div style="font-size:0.75rem;color:#6ee7b7;margin-top:2px">Highest predicted EV usage</div>
+      </div>
+      <div style="padding:16px;display:flex;flex-direction:column;gap:10px">
+        ${highDemand.map(s=>oppCard(s,'demand','HIGH DEMAND','#10b981')).join('')}
+      </div>
+    </div>
+    <!-- Low Competition -->
+    <div style="background:#111827;border:1px solid #1e293b;border-radius:16px;overflow:hidden">
+      <div style="padding:16px 20px;background:linear-gradient(135deg,#78350f,#92400e);border-bottom:1px solid #1e293b">
+        <div style="font-size:0.95rem;font-weight:800;color:#fbbf24">🏁 Low Competition</div>
+        <div style="font-size:0.75rem;color:#fde68a;margin-top:2px">Far from existing stations</div>
+      </div>
+      <div style="padding:16px;display:flex;flex-direction:column;gap:10px">
+        ${lowComp.map(s=>oppCard(s,'comp','LOW COMPETITION','#f59e0b')).join('')}
+      </div>
+    </div>
+    <!-- Underserved -->
+    <div style="background:#111827;border:1px solid #1e293b;border-radius:16px;overflow:hidden">
+      <div style="padding:16px 20px;background:linear-gradient(135deg,#3b0764,#4c1d95);border-bottom:1px solid #1e293b">
+        <div style="font-size:0.95rem;font-weight:800;color:#c4b5fd">📡 Underserved Areas</div>
+        <div style="font-size:0.75rem;color:#ddd6fe;margin-top:2px">Largest gap from nearest charger</div>
+      </div>
+      <div style="padding:16px;display:flex;flex-direction:column;gap:10px">
+        ${underserved.map(s=>oppCard(s,'dist','UNDERSERVED','#8b5cf6')).join('')}
+      </div>
+    </div>
+  </div>
+
+  <!-- Opportunity Map -->
+  <div style="background:#111827;border:1px solid #1e293b;border-radius:16px;overflow:hidden;margin-bottom:28px">
+    <div style="padding:18px 24px;background:#1f2937;border-bottom:1px solid #1e293b;display:flex;align-items:center;gap:12px">
+      <div style="font-size:1rem;font-weight:800">🗺️ Opportunity Map</div>
+      <div style="font-size:0.78rem;color:#64748b">Bubble size = opportunity score · Color = profitability tier</div>
+      <div style="margin-left:auto;display:flex;gap:14px">
+        <div style="display:flex;align-items:center;gap:6px;font-size:0.75rem;color:#94a3b8"><div style="width:10px;height:10px;border-radius:50%;background:#10b981"></div>High Profit</div>
+        <div style="display:flex;align-items:center;gap:6px;font-size:0.75rem;color:#94a3b8"><div style="width:10px;height:10px;border-radius:50%;background:#f59e0b"></div>Medium</div>
+        <div style="display:flex;align-items:center;gap:6px;font-size:0.75rem;color:#94a3b8"><div style="width:10px;height:10px;border-radius:50%;background:#ef4444"></div>Existing Station</div>
+      </div>
+    </div>
+    <div id="${oppMapId}" style="height:420px"></div>
+  </div>
+
+  <!-- Full Opportunity Table -->
+  <div style="background:#111827;border:1px solid #1e293b;border-radius:16px;overflow:hidden">
+    <div style="padding:18px 24px;background:#1f2937;border-bottom:1px solid #1e293b">
+      <div style="font-size:1rem;font-weight:800">📋 All Sites — Opportunity Analysis</div>
+      <div style="font-size:0.78rem;color:#64748b;margin-top:4px">Sorted by opportunity score (demand + low competition + infrastructure)</div>
+    </div>
+    <div style="padding:20px 24px">
+      <table id="oppTable" class="display" style="width:100%">
+        <thead><tr>
+          <th>Opp. Rank</th><th>Site</th><th>Demand</th><th>Competition Gap</th>
+          <th>Nearest Competitor</th><th>AHP Score</th><th>Opp. Score</th>
+        </tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
+  </div>`;
+
+  // Init opportunity map
+  setTimeout(() => {
+    const omap = L.map(oppMapId).setView([12.9716, 77.5946], 12);
+    L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
+      {attribution:'© OpenStreetMap © CARTO',maxZoom:19}).addTo(omap);
+
+    // Plot existing OCM stations (red, small)
+    OCM_STATIONS.forEach(s => {
+      L.circleMarker([s.lat,s.lon],{radius:5,color:'#ef4444',fillColor:'#ef4444',fillOpacity:0.6,weight:1})
+        .addTo(omap).bindPopup(`<b style="color:#1e293b">${s.name}</b><br>🔌 Existing Station`);
+    });
+
+    // Plot candidate sites with bubble size = opp_score
+    opps.forEach((s,i) => {
+      const r = 8 + Math.round(s.opp_score * 18);
+      const color = s.opp_score>=0.5?'#10b981':s.opp_score>=0.35?'#f59e0b':'#3b82f6';
+      L.circleMarker([s.latitude,s.longitude],{
+        radius:r,color:color,fillColor:color,fillOpacity:0.75,weight:2
+      }).addTo(omap).bindPopup(
+        `<div style="font-family:sans-serif;min-width:180px">
+          <b style="color:#1e293b">${s.site_id}</b>
+          <hr style="margin:6px 0;border-color:#e2e8f0">
+          <b>Opp. Score:</b> ${s.opp_score.toFixed(3)}<br>
+          <b>Demand:</b> ${s.predicted_demand.toFixed(3)}<br>
+          <b>Competition:</b> ${(s.competition_score||0).toFixed(3)}<br>
+          <b>Nearest:</b> ${(s.nearest_competitor_km||0).toFixed(2)} km<br>
+          <b>Final Rank:</b> #${s.final_rank}
+        </div>`
+      );
+    });
+
+    // Init DataTable
+    $('#oppTable').DataTable({
+      data: opps.map((s,i)=>({...s,opp_rank:i+1})),
+      columns:[
+        {data:'opp_rank', render: d => {
+          const c=d<=3?'#10b981':d<=7?'#f59e0b':'#475569';
+          return `<span class="rank-badge" style="background:${c}">#${d}</span>`;
+        }},
+        {data:'site_id', render: d=>`<span class="site-name-cell">${d}</span>`},
+        {data:'predicted_demand', render: d=>`<div class="bar-wrap"><div class="bar-bg"><div class="bar-fill" style="width:${d*100}%;background:linear-gradient(90deg,#10b981,#06b6d4)"></div></div><span style="font-size:0.82rem;font-weight:700">${d.toFixed(3)}</span></div>`},
+        {data:'competition_score', render: d=>{
+          const c=(d||0)>=0.4?'#10b981':(d||0)>=0.2?'#f59e0b':'#ef4444';
+          return `<span style="color:${c};font-weight:700">${(d||0).toFixed(3)}</span>`;
+        }},
+        {data:'nearest_competitor_km', render: d=>`<span style="font-weight:600">${(d||0).toFixed(2)} km</span>`},
+        {data:'ahp_score', render: d=>`<span style="font-weight:700;color:#60a5fa">${d.toFixed(3)}</span>`},
+        {data:'opp_score', render: d=>{
+          const c=d>=0.5?'#10b981':d>=0.35?'#f59e0b':'#64748b';
+          return `<span style="color:${c};font-weight:900;font-size:1rem">${d.toFixed(3)}</span>`;
+        }}
+      ],
+      order:[[0,'asc']],pageLength:10,
+      dom:'frtip',
+      language:{search:'🔍 Search:',info:'_START_–_END_ of _TOTAL_'}
+    });
+  }, 100);
+}
+</script>
+
+</body>
+</html>

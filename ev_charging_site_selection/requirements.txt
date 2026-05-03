@@ -1,0 +1,11 @@
+geopandas>=0.14
+shapely>=2.0
+folium>=0.15
+numpy>=1.26
+pandas>=2.0
+scikit-learn>=1.4
+matplotlib>=3.8
+plotly>=5.18
+osmnx>=1.9
+requests>=2.31
+notebook>=7.0

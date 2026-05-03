@@ -1,0 +1,20 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+.env
+venv/
+.venv/
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Cache (large files)
+cache/
+*.json.cache
+
+# OS
+.DS_Store
+
+# API keys backup
+config_apis_backup.py

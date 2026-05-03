@@ -1,0 +1,1248 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>EV Charging Station Site Selection Dashboard</title>
+<script src="https://cdn.plot.ly/plotly-2.27.0.min.js"></script>
+<!-- DataTables for interactive tables -->
+<link rel="stylesheet" href="https://cdn.datatables.net/1.13.7/css/jquery.dataTables.min.css">
+<link rel="stylesheet" href="https://cdn.datatables.net/buttons/2.4.2/css/buttons.dataTables.min.css">
+<script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.7/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/buttons/2.4.2/js/dataTables.buttons.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/pdfmake.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.2.7/vfs_fonts.js"></script>
+<script src="https://cdn.datatables.net/buttons/2.4.2/js/buttons.html5.min.js"></script>
+<script src="https://cdn.datatables.net/buttons/2.4.2/js/buttons.print.min.js"></script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg:       #020817;
+    --surface:  #0f172a;
+    --card:     #1e293b;
+    --border:   #334155;
+    --text:     #e2e8f0;
+    --muted:    #94a3b8;
+    --accent:   #3b82f6;
+    --green:    #10b981;
+    --yellow:   #f59e0b;
+    --red:      #ef4444;
+  }
+  body { background: var(--bg); color: var(--text); font-family: 'Segoe UI', system-ui, sans-serif; min-height: 100vh; }
+
+  /* ── Header ── */
+  header {
+    background: linear-gradient(135deg, #0f172a 0%, #1e3a5f 100%);
+    border-bottom: 1px solid var(--border);
+    padding: 20px 32px;
+    display: flex; align-items: center; gap: 16px;
+  }
+  .header-icon { font-size: 2.2rem; }
+  header h1 { font-size: 1.6rem; font-weight: 700; letter-spacing: -0.5px; }
+  header p  { color: var(--muted); font-size: 0.85rem; margin-top: 2px; }
+  .header-badge {
+    margin-left: auto; background: rgba(59,130,246,0.15);
+    border: 1px solid var(--accent); color: var(--accent);
+    padding: 4px 12px; border-radius: 20px; font-size: 0.78rem; font-weight: 600;
+  }
+
+  /* ── Layout ── */
+  .layout { display: flex; min-height: calc(100vh - 80px); }
+  nav {
+    width: 220px; flex-shrink: 0;
+    background: var(--surface); border-right: 1px solid var(--border);
+    padding: 24px 0; position: sticky; top: 0; height: calc(100vh - 80px); overflow-y: auto;
+  }
+  nav .nav-section { padding: 8px 20px 4px; font-size: 0.7rem; color: var(--muted); text-transform: uppercase; letter-spacing: 1px; }
+  nav a {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 20px; color: var(--muted); text-decoration: none;
+    font-size: 0.88rem; border-left: 3px solid transparent; transition: all .2s;
+  }
+  nav a:hover, nav a.active { color: var(--text); background: rgba(59,130,246,0.08); border-left-color: var(--accent); }
+  nav a .nav-icon { font-size: 1rem; width: 20px; text-align: center; }
+
+  main { flex: 1; padding: 28px 32px; overflow-y: auto; }
+
+  /* ── Tabs ── */
+  .tab-bar { display: flex; gap: 4px; margin-bottom: 24px; border-bottom: 1px solid var(--border); padding-bottom: 0; }
+  .tab-btn {
+    padding: 10px 20px; background: none; border: none; color: var(--muted);
+    cursor: pointer; font-size: 0.9rem; border-bottom: 2px solid transparent;
+    transition: all .2s; margin-bottom: -1px;
+  }
+  .tab-btn.active { color: var(--accent); border-bottom-color: var(--accent); font-weight: 600; }
+  .tab-content { display: none; }
+  .tab-content.active { display: block; }
+
+  /* ── Stat Cards ── */
+  .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 16px; margin-bottom: 28px; }
+  .stat-card {
+    background: var(--card); border: 1px solid var(--border); border-radius: 12px;
+    padding: 20px; position: relative; overflow: hidden;
+  }
+  .stat-card::before {
+    content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px;
+    background: var(--accent-color, var(--accent));
+  }
+  .stat-label { font-size: 0.75rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; }
+  .stat-value { font-size: 1.8rem; font-weight: 700; margin: 6px 0 2px; }
+  .stat-sub   { font-size: 0.78rem; color: var(--muted); }
+  .stat-icon  { position: absolute; right: 16px; top: 16px; font-size: 1.6rem; opacity: 0.3; }
+
+  /* ── Chart Grid ── */
+  .chart-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px; }
+  .chart-grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px; margin-bottom: 20px; }
+  .chart-card {
+    background: var(--card); border: 1px solid var(--border); border-radius: 12px;
+    padding: 4px; overflow: hidden;
+  }
+  .chart-card.full { grid-column: 1 / -1; }
+
+  /* ── Map ── */
+  .map-container {
+    background: var(--card); border: 1px solid var(--border); border-radius: 12px;
+    overflow: hidden; height: 580px;
+  }
+  .map-container iframe { width: 100%; height: 100%; border: none; }
+  .map-legend {
+    display: flex; gap: 20px; padding: 12px 20px;
+    background: var(--surface); border-top: 1px solid var(--border);
+    font-size: 0.82rem; color: var(--muted);
+  }
+  .legend-dot { width: 12px; height: 12px; border-radius: 50%; display: inline-block; margin-right: 6px; }
+
+  /* ── Table ── */
+  .table-wrap { background: var(--card); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
+  .table-header { padding: 16px 20px; border-bottom: 1px solid var(--border); display: flex; align-items: center; justify-content: space-between; }
+  .table-header h3 { font-size: 1rem; font-weight: 600; }
+  table { width: 100%; border-collapse: collapse; }
+  thead th { padding: 12px 16px; text-align: left; font-size: 0.78rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.5px; background: var(--surface); border-bottom: 1px solid var(--border); }
+  tbody tr { border-bottom: 1px solid var(--border); transition: background .15s; }
+  tbody tr:hover { background: rgba(59,130,246,0.05); }
+  tbody td { padding: 12px 16px; font-size: 0.88rem; }
+  .rank-badge { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 0.75rem; font-weight: 700; color: #fff; }
+  .site-id { font-family: monospace; font-weight: 600; color: var(--accent); }
+  .final-score { font-weight: 700; font-size: 1rem; }
+  .score-bar-wrap { display: flex; align-items: center; gap: 8px; }
+  .score-bar { height: 6px; border-radius: 3px; min-width: 4px; }
+  .score-bar-wrap span { font-size: 0.82rem; color: var(--muted); white-space: nowrap; }
+
+  /* ── Model Stats ── */
+  .model-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 20px; }
+  .model-stat { background: var(--card); border: 1px solid var(--border); border-radius: 10px; padding: 16px; text-align: center; }
+  .model-stat .val { font-size: 1.5rem; font-weight: 700; color: var(--green); }
+  .model-stat .lbl { font-size: 0.75rem; color: var(--muted); margin-top: 4px; }
+
+  /* ── Responsive ── */
+  @media (max-width: 900px) {
+    nav { display: none; }
+    .chart-grid-2, .chart-grid-3 { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="header-icon">⚡</div>
+  <div>
+    <h1>EV Charging Station Site Selection</h1>
+    <p>GIS Filtering · AHP Scoring · ML Demand Forecasting</p>
+  </div>
+  <span class="header-badge">Bengaluru, India</span>
+</header>
+
+<div class="layout">
+  <nav>
+    <div class="nav-section">Navigation</div>
+    <a href="#" class="active" onclick="showTab('overview',this)"><span class="nav-icon">📊</span> Overview</a>
+    <a href="#" onclick="showTab('map',this)"><span class="nav-icon">🗺️</span> Site Map</a>
+    <a href="#" onclick="showTab('charts',this)"><span class="nav-icon">📈</span> Analytics</a>
+    <a href="#" onclick="showTab('table',this)"><span class="nav-icon">📋</span> Rankings</a>
+    <a href="#" onclick="showTab('model',this)"><span class="nav-icon">🤖</span> ML Model</a>
+    <div class="nav-section" style="margin-top:16px">Info</div>
+    <a href="#"><span class="nav-icon">ℹ️</span> About AHP</a>
+  </nav>
+
+  <main>
+    <div class="tab-bar">
+      <button class="tab-btn active" onclick="showTab('overview',this)">📊 Overview</button>
+      <button class="tab-btn" onclick="showTab('map',this)">🗺️ Map</button>
+      <button class="tab-btn" onclick="showTab('charts',this)">📈 Analytics</button>
+      <button class="tab-btn" onclick="showTab('table',this)">📋 Rankings</button>
+      <button class="tab-btn" onclick="showTab('model',this)">🤖 ML Model</button>
+    </div>
+
+    <!-- ══ OVERVIEW TAB ══ -->
+    <div id="tab-overview" class="tab-content active">
+      <div class="stats-grid">
+        <div class="stat-card" style="--accent-color:#3b82f6">
+          <span class="stat-icon">📍</span>
+          <div class="stat-label">Candidate Sites</div>
+          <div class="stat-value">15</div>
+          <div class="stat-sub">Passed GIS spatial filters</div>
+        </div>
+        <div class="stat-card" style="--accent-color:#f59e0b">
+          <span class="stat-icon">🏆</span>
+          <div class="stat-label">Top Recommended Site</div>
+          <div class="stat-value">Manyata Tech Park</div>
+          <div class="stat-sub">Final score: 0.655</div>
+        </div>
+        <div class="stat-card" style="--accent-color:#10b981">
+          <span class="stat-icon">⚡</span>
+          <div class="stat-label">Avg Final Score</div>
+          <div class="stat-value">0.517</div>
+          <div class="stat-sub">Across all filtered sites</div>
+        </div>
+        <div class="stat-card" style="--accent-color:#6366f1">
+          <span class="stat-icon">📡</span>
+          <div class="stat-label">Avg Predicted Demand</div>
+          <div class="stat-value">0.531</div>
+          <div class="stat-sub">Random Forest prediction</div>
+        </div>
+        <div class="stat-card" style="--accent-color:#ec4899">
+          <span class="stat-icon">✅</span>
+          <div class="stat-label">AHP Consistency Ratio</div>
+          <div class="stat-value">0.0162</div>
+          <div class="stat-sub">✓ Acceptable (< 0.1)</div>
+        </div>
+        <div class="stat-card" style="--accent-color:#14b8a6">
+          <span class="stat-icon">🎯</span>
+          <div class="stat-label">Model R² Score</div>
+          <div class="stat-value">0.825</div>
+          <div class="stat-sub">Random Forest accuracy</div>
+        </div>
+      </div>
+      <div class="chart-grid-2">
+        <div class="chart-card"><div id="chart-ahp-overview"></div></div>
+        <div class="chart-card"><div id="chart-radar-overview"></div></div>
+      </div>
+      <div class="chart-card full"><div id="chart-top-overview"></div></div>
+    </div>
+
+    <!-- ══ MAP TAB ══ -->
+    <div id="tab-map" class="tab-content">
+      <div style="margin-bottom:14px;display:flex;align-items:center;gap:12px;flex-wrap:wrap">
+        <div style="background:#1e293b;border:1px solid #334155;border-radius:10px;padding:10px 16px;font-size:0.83rem;color:#94a3b8;flex:1;min-width:260px">
+          <b style="color:#e2e8f0">🔍 How to use the map:</b>
+          Type a location name (e.g. <i>Koramangala</i>, <i>Whitefield</i>, <i>Hebbal</i>) in the search bar,
+          choose a radius, and click <b>Search</b>. A panel will list all EV candidate sites
+          within that area with their exact coordinates and scores. Click any site in the panel to fly to it.
+        </div>
+        <div style="display:flex;gap:16px;align-items:center;background:#1e293b;border:1px solid #334155;border-radius:10px;padding:10px 16px;font-size:0.82rem;color:#94a3b8">
+          <span><span style="display:inline-block;width:12px;height:12px;border-radius:50%;background:#ef4444;margin-right:6px"></span>Top 10 sites</span>
+          <span><span style="display:inline-block;width:12px;height:12px;border-radius:50%;background:#3b82f6;margin-right:6px"></span>Other sites</span>
+          <span><span style="display:inline-block;width:12px;height:12px;border-radius:50%;background:#3b82f6;opacity:0.3;margin-right:6px;border:2px dashed #3b82f6"></span>Search radius</span>
+        </div>
+      </div>
+      <div class="map-container">
+        <iframe srcdoc="<!DOCTYPE html>
+<html>
+<head>
+    
+    <meta http-equiv=&quot;content-type&quot; content=&quot;text/html; charset=UTF-8&quot; />
+    <script src=&quot;https://cdn.jsdelivr.net/npm/leaflet@1.9.3/dist/leaflet.js&quot;></script>
+    <script src=&quot;https://code.jquery.com/jquery-3.7.1.min.js&quot;></script>
+    <script src=&quot;https://cdn.jsdelivr.net/npm/bootstrap@5.2.2/dist/js/bootstrap.bundle.min.js&quot;></script>
+    <script src=&quot;https://cdnjs.cloudflare.com/ajax/libs/Leaflet.awesome-markers/2.0.2/leaflet.awesome-markers.js&quot;></script>
+    <link rel=&quot;stylesheet&quot; href=&quot;https://cdn.jsdelivr.net/npm/leaflet@1.9.3/dist/leaflet.css&quot;/>
+    <link rel=&quot;stylesheet&quot; href=&quot;https://cdn.jsdelivr.net/npm/bootstrap@5.2.2/dist/css/bootstrap.min.css&quot;/>
+    <link rel=&quot;stylesheet&quot; href=&quot;https://netdna.bootstrapcdn.com/bootstrap/3.0.0/css/bootstrap-glyphicons.css&quot;/>
+    <link rel=&quot;stylesheet&quot; href=&quot;https://cdn.jsdelivr.net/npm/@fortawesome/fontawesome-free@6.2.0/css/all.min.css&quot;/>
+    <link rel=&quot;stylesheet&quot; href=&quot;https://cdnjs.cloudflare.com/ajax/libs/Leaflet.awesome-markers/2.0.2/leaflet.awesome-markers.css&quot;/>
+    <link rel=&quot;stylesheet&quot; href=&quot;https://cdn.jsdelivr.net/gh/python-visualization/folium/folium/templates/leaflet.awesome.rotate.min.css&quot;/>
+    
+            <meta name=&quot;viewport&quot; content=&quot;width=device-width,
+                initial-scale=1.0, maximum-scale=1.0, user-scalable=no&quot; />
+            <style>
+                #map_c8bef5a22fe35d97c7b3aca125851df1 {
+                    position: relative;
+                    width: 100.0%;
+                    height: 100.0%;
+                    left: 0.0%;
+                    top: 0.0%;
+                }
+                .leaflet-container { font-size: 1rem; }
+            </style>
+
+            <style>html, body {
+                width: 100%;
+                height: 100%;
+                margin: 0;
+                padding: 0;
+            }
+            </style>
+
+            <style>#map {
+                position:absolute;
+                top:0;
+                bottom:0;
+                right:0;
+                left:0;
+                }
+            </style>
+
+            <script>
+                L_NO_TOUCH = false;
+                L_DISABLE_3D = false;
+            </script>
+
+        
+</head>
+<body>
+    
+    
+    <style>
+      #ev-search-box {
+        position: absolute; top: 16px; left: 50%; transform: translateX(-50%);
+        z-index: 9999; display: flex; gap: 8px; align-items: center;
+        background: #0f172a; border: 1px solid #334155; border-radius: 12px;
+        padding: 10px 14px; box-shadow: 0 4px 24px rgba(0,0,0,0.5);
+        min-width: 380px;
+      }
+      #ev-search-box input {
+        flex: 1; background: #1e293b; border: 1px solid #475569; border-radius: 8px;
+        color: #e2e8f0; padding: 8px 12px; font-size: 0.9rem; outline: none;
+      }
+      #ev-search-box input::placeholder { color: #64748b; }
+      #ev-search-box button {
+        background: #3b82f6; color: #fff; border: none; border-radius: 8px;
+        padding: 8px 16px; cursor: pointer; font-size: 0.88rem; font-weight: 600;
+        white-space: nowrap;
+      }
+      #ev-search-box button:hover { background: #2563eb; }
+      #radius-select {
+        background: #1e293b; border: 1px solid #475569; border-radius: 8px;
+        color: #e2e8f0; padding: 8px 8px; font-size: 0.85rem; cursor: pointer;
+      }
+      #ev-results-panel {
+        position: absolute; top: 76px; right: 16px; z-index: 9998;
+        background: #0f172a; border: 1px solid #334155; border-radius: 12px;
+        width: 320px; max-height: 480px; overflow-y: auto;
+        box-shadow: 0 4px 24px rgba(0,0,0,0.5); display: none;
+      }
+      #ev-results-panel .panel-header {
+        padding: 12px 16px; border-bottom: 1px solid #334155;
+        font-size: 0.85rem; color: #94a3b8; display: flex;
+        justify-content: space-between; align-items: center;
+        position: sticky; top: 0; background: #0f172a;
+      }
+      #ev-results-panel .panel-header b { color: #e2e8f0; font-size: 0.95rem; }
+      #ev-results-panel .close-btn {
+        cursor: pointer; color: #64748b; font-size: 1.1rem; line-height: 1;
+        background: none; border: none; padding: 0;
+      }
+      #ev-results-panel .close-btn:hover { color: #e2e8f0; }
+      .ev-site-card {
+        padding: 12px 16px; border-bottom: 1px solid #1e293b;
+        cursor: pointer; transition: background 0.15s;
+      }
+      .ev-site-card:hover { background: #1e293b; }
+      .ev-site-card .site-name {
+        font-weight: 700; color: #3b82f6; font-size: 0.92rem;
+        display: flex; justify-content: space-between; align-items: center;
+      }
+      .ev-site-card .site-coords {
+        font-size: 0.75rem; color: #64748b; margin-top: 2px; font-family: monospace;
+      }
+      .ev-site-card .site-scores {
+        display: flex; gap: 10px; margin-top: 6px; font-size: 0.78rem;
+      }
+      .ev-site-card .score-pill {
+        background: #1e293b; border: 1px solid #334155; border-radius: 6px;
+        padding: 2px 8px; color: #94a3b8;
+      }
+      .ev-site-card .score-pill b { color: #e2e8f0; }
+      .top-badge {
+        background: #92400e; color: #fcd34d; font-size: 0.7rem;
+        padding: 1px 6px; border-radius: 4px; font-weight: 700;
+      }
+      .dist-badge {
+        background: #1e3a5f; color: #93c5fd; font-size: 0.7rem;
+        padding: 1px 6px; border-radius: 4px;
+      }
+      #ev-search-status {
+        position: absolute; top: 76px; left: 50%; transform: translateX(-50%);
+        z-index: 9997; background: #0f172a; border: 1px solid #334155;
+        border-radius: 8px; padding: 8px 16px; font-size: 0.82rem;
+        color: #94a3b8; display: none; white-space: nowrap;
+      }
+    </style>
+
+    <div id=&quot;ev-search-box&quot;>
+      <input id=&quot;ev-location-input&quot; type=&quot;text&quot;
+             placeholder=&quot;Search location (e.g. Koramangala, Whitefield…)&quot;
+             onkeydown=&quot;if(event.key===&#39;Enter&#39;) searchLocation()&quot; />
+      <select id=&quot;radius-select&quot;>
+        <option value=&quot;2&quot;>2 km</option>
+        <option value=&quot;5&quot; selected>5 km</option>
+        <option value=&quot;10&quot;>10 km</option>
+        <option value=&quot;20&quot;>20 km</option>
+      </select>
+      <button onclick=&quot;searchLocation()&quot;>🔍 Search</button>
+    </div>
+    <div id=&quot;ev-search-status&quot;></div>
+    <div id=&quot;ev-results-panel&quot;>
+      <div class=&quot;panel-header&quot;>
+        <div><b id=&quot;panel-title&quot;>Nearby EV Sites</b><br><span id=&quot;panel-subtitle&quot;></span></div>
+        <button class=&quot;close-btn&quot; onclick=&quot;closePanel()&quot;>✕</button>
+      </div>
+      <div id=&quot;panel-body&quot;></div>
+    </div>
+
+    <script>
+      const EV_SITES = [{&quot;id&quot;: &quot;Manyata Tech Park&quot;, &quot;lat&quot;: 13.047, &quot;lon&quot;: 77.62, &quot;ahp&quot;: 0.854, &quot;demand&quot;: 0.657, &quot;score&quot;: 0.655, &quot;rank&quot;: 1, &quot;is_top&quot;: true}, {&quot;id&quot;: &quot;Vijayanagar&quot;, &quot;lat&quot;: 12.975, &quot;lon&quot;: 77.535, &quot;ahp&quot;: 0.789, &quot;demand&quot;: 0.513, &quot;score&quot;: 0.622, &quot;rank&quot;: 2, &quot;is_top&quot;: true}, {&quot;id&quot;: &quot;Kalyan Nagar&quot;, &quot;lat&quot;: 13.028, &quot;lon&quot;: 77.639, &quot;ahp&quot;: 0.77, &quot;demand&quot;: 0.451, &quot;score&quot;: 0.586, &quot;rank&quot;: 3, &quot;is_top&quot;: true}, {&quot;id&quot;: &quot;Cunningham Road&quot;, &quot;lat&quot;: 12.995, &quot;lon&quot;: 77.595, &quot;ahp&quot;: 0.614, &quot;demand&quot;: 0.621, &quot;score&quot;: 0.581, &quot;rank&quot;: 4, &quot;is_top&quot;: true}, {&quot;id&quot;: &quot;MG Road Metro Station&quot;, &quot;lat&quot;: 12.9756, &quot;lon&quot;: 77.6069, &quot;ahp&quot;: 0.769, &quot;demand&quot;: 0.637, &quot;score&quot;: 0.575, &quot;rank&quot;: 5, &quot;is_top&quot;: true}, {&quot;id&quot;: &quot;Jayanagar 4th Block&quot;, &quot;lat&quot;: 12.925, &quot;lon&quot;: 77.5833, &quot;ahp&quot;: 0.731, &quot;demand&quot;: 0.639, &quot;score&quot;: 0.557, &quot;rank&quot;: 6, &quot;is_top&quot;: true}, {&quot;id&quot;: &quot;Brigade Road&quot;, &quot;lat&quot;: 12.9716, &quot;lon&quot;: 77.6081, &quot;ahp&quot;: 0.745, &quot;demand&quot;: 0.582, &quot;score&quot;: 0.547, &quot;rank&quot;: 7, &quot;is_top&quot;: true}, {&quot;id&quot;: &quot;Residency Road&quot;, &quot;lat&quot;: 12.9716, &quot;lon&quot;: 77.6081, &quot;ahp&quot;: 0.745, &quot;demand&quot;: 0.582, &quot;score&quot;: 0.547, &quot;rank&quot;: 7, &quot;is_top&quot;: true}, {&quot;id&quot;: &quot;Hennur Main Road&quot;, &quot;lat&quot;: 13.035, &quot;lon&quot;: 77.645, &quot;ahp&quot;: 0.589, &quot;demand&quot;: 0.482, &quot;score&quot;: 0.529, &quot;rank&quot;: 9, &quot;is_top&quot;: true}, {&quot;id&quot;: &quot;Thanisandra Main Road&quot;, &quot;lat&quot;: 13.055, &quot;lon&quot;: 77.655, &quot;ahp&quot;: 0.588, &quot;demand&quot;: 0.444, &quot;score&quot;: 0.519, &quot;rank&quot;: 10, &quot;is_top&quot;: true}, {&quot;id&quot;: &quot;Hebbal Flyover&quot;, &quot;lat&quot;: 13.0358, &quot;lon&quot;: 77.597, &quot;ahp&quot;: 0.646, &quot;demand&quot;: 0.449, &quot;score&quot;: 0.513, &quot;rank&quot;: 11, &quot;is_top&quot;: false}, {&quot;id&quot;: &quot;Frazer Town&quot;, &quot;lat&quot;: 12.989, &quot;lon&quot;: 77.618, &quot;ahp&quot;: 0.527, &quot;demand&quot;: 0.511, &quot;score&quot;: 0.417, &quot;rank&quot;: 12, &quot;is_top&quot;: false}, {&quot;id&quot;: &quot;Kammanahalli Main Road&quot;, &quot;lat&quot;: 13.012, &quot;lon&quot;: 77.638, &quot;ahp&quot;: 0.518, &quot;demand&quot;: 0.316, &quot;score&quot;: 0.393, &quot;rank&quot;: 13, &quot;is_top&quot;: false}, {&quot;id&quot;: &quot;Ulsoor Lake Area&quot;, &quot;lat&quot;: 12.981, &quot;lon&quot;: 77.621, &quot;ahp&quot;: 0.396, &quot;demand&quot;: 0.586, &quot;score&quot;: 0.374, &quot;rank&quot;: 14, &quot;is_top&quot;: false}, {&quot;id&quot;: &quot;Nagawara&quot;, &quot;lat&quot;: 13.045, &quot;lon&quot;: 77.605, &quot;ahp&quot;: 0.349, &quot;demand&quot;: 0.486, &quot;score&quot;: 0.342, &quot;rank&quot;: 15, &quot;is_top&quot;: false}];
+      let searchCircle = null;
+      let searchMarker = null;
+
+      function haversine(lat1, lon1, lat2, lon2) {
+        const R = 6371;
+        const dLat = (lat2 - lat1) * Math.PI / 180;
+        const dLon = (lon2 - lon1) * Math.PI / 180;
+        const a = Math.sin(dLat/2)**2 +
+                  Math.cos(lat1*Math.PI/180) * Math.cos(lat2*Math.PI/180) *
+                  Math.sin(dLon/2)**2;
+        return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+      }
+
+      function setStatus(msg) {
+        const el = document.getElementById(&#39;ev-search-status&#39;);
+        el.textContent = msg;
+        el.style.display = msg ? &#39;block&#39; : &#39;none&#39;;
+      }
+
+      function closePanel() {
+        document.getElementById(&#39;ev-results-panel&#39;).style.display = &#39;none&#39;;
+      }
+
+      function flyToSite(lat, lon, siteId) {
+        const map = Object.values(window).find(v => v &amp;&amp; v._leaflet_id &amp;&amp; v.setView);
+        if (map) map.setView([lat, lon], 16);
+      }
+
+      function renderPanel(locationName, lat, lon, radius, nearby) {
+        document.getElementById(&#39;panel-title&#39;).textContent =
+          `${nearby.length} EV Site${nearby.length !== 1 ? &#39;s&#39; : &#39;&#39;} within ${radius} km`;
+        document.getElementById(&#39;panel-subtitle&#39;).textContent = locationName;
+
+        const body = document.getElementById(&#39;panel-body&#39;);
+        if (nearby.length === 0) {
+          body.innerHTML = `<div style=&quot;padding:20px;text-align:center;color:#64748b&quot;>
+            <div style=&quot;font-size:2rem&quot;>📍</div>
+            <div style=&quot;margin-top:8px&quot;>No EV sites found within ${radius} km of this location.</div>
+            <div style=&quot;font-size:0.78rem;margin-top:4px&quot;>Try increasing the radius.</div>
+          </div>`;
+        } else {
+          body.innerHTML = nearby.map(s => `
+            <div class=&quot;ev-site-card&quot; onclick=&quot;flyToSite(${s.lat},${s.lon},&#39;${s.id}&#39;)&quot;>
+              <div class=&quot;site-name&quot;>
+                <span>${s.id}</span>
+                <span style=&quot;display:flex;gap:4px;align-items:center&quot;>
+                  ${s.is_top ? &#39;<span class=&quot;top-badge&quot;>⭐ TOP 10</span>&#39; : &#39;&#39;}
+                  <span class=&quot;dist-badge&quot;>${s.dist.toFixed(1)} km</span>
+                </span>
+              </div>
+              <div class=&quot;site-coords&quot;>📍 ${s.lat}, ${s.lon}</div>
+              <div class=&quot;site-scores&quot;>
+                <span class=&quot;score-pill&quot;>AHP <b>${s.ahp}</b></span>
+                <span class=&quot;score-pill&quot;>Demand <b>${s.demand}</b></span>
+                <span class=&quot;score-pill&quot;>Score <b style=&quot;color:#10b981&quot;>${s.score}</b></span>
+                <span class=&quot;score-pill&quot;>Rank <b>#${s.rank}</b></span>
+              </div>
+            </div>`).join(&#39;&#39;);
+        }
+        document.getElementById(&#39;ev-results-panel&#39;).style.display = &#39;block&#39;;
+      }
+
+      function drawSearchArea(lat, lon, radiusKm) {
+        const map = Object.values(window).find(v => v &amp;&amp; v._leaflet_id &amp;&amp; v.setView);
+        if (!map) return;
+        if (searchCircle)  { searchCircle.remove(); }
+        if (searchMarker) { searchMarker.remove(); }
+        searchCircle = L.circle([lat, lon], {
+          radius: radiusKm * 1000,
+          color: &#39;#3b82f6&#39;, fillColor: &#39;#3b82f6&#39;,
+          fillOpacity: 0.08, weight: 2, dashArray: &#39;6 4&#39;
+        }).addTo(map);
+        searchMarker = L.marker([lat, lon], {
+          icon: L.divIcon({
+            html: `<div style=&quot;background:#3b82f6;color:#fff;border-radius:50%;width:28px;height:28px;
+                          display:flex;align-items:center;justify-content:center;
+                          font-size:14px;border:2px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,0.4)&quot;>📍</div>`,
+            iconSize: [28, 28], iconAnchor: [14, 14], className: &#39;&#39;
+          })
+        }).addTo(map);
+        map.setView([lat, lon], 13);
+      }
+
+      async function searchLocation() {
+        const query = document.getElementById(&#39;ev-location-input&#39;).value.trim();
+        const radius = parseFloat(document.getElementById(&#39;radius-select&#39;).value);
+        if (!query) return;
+
+        setStatus(&#39;🔍 Searching for &quot;&#39; + query + &#39;&quot;…&#39;);
+        closePanel();
+
+        try {
+          // Try PositionStack API first (your API key)
+          const psUrl = `http://api.positionstack.com/v1/forward?access_key=25568ac20b49c89857f39f3505b6f7f5&amp;query=${encodeURIComponent(query + &#39;, Bangalore&#39;)}&amp;limit=1`;
+          let res = await fetch(psUrl);
+          let data = await res.json();
+          
+          let lat, lon, displayName;
+          
+          if (data.data &amp;&amp; data.data.length > 0) {
+            // PositionStack success
+            lat = data.data[0].latitude;
+            lon = data.data[0].longitude;
+            displayName = data.data[0].label.split(&#39;,&#39;).slice(0,2).join(&#39;, &#39;);
+          } else {
+            // Fallback to Nominatim (free, no key needed)
+            const nomUrl = `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query + &#39;, Bengaluru&#39;)}&amp;format=json&amp;limit=1`;
+            res = await fetch(nomUrl, { headers: { &#39;Accept-Language&#39;: &#39;en&#39; } });
+            data = await res.json();
+            
+            if (!data.length) {
+              setStatus(&#39;❌ Location not found. Try a different name.&#39;);
+              setTimeout(() => setStatus(&#39;&#39;), 3000);
+              return;
+            }
+            
+            lat = parseFloat(data[0].lat);
+            lon = parseFloat(data[0].lon);
+            displayName = data[0].display_name.split(&#39;,&#39;).slice(0,2).join(&#39;, &#39;);
+          }
+
+          drawSearchArea(lat, lon, radius);
+          setStatus(&#39;&#39;);
+
+          const nearby = EV_SITES
+            .map(s => ({ ...s, dist: haversine(lat, lon, s.lat, s.lon) }))
+            .filter(s => s.dist <= radius)
+            .sort((a, b) => a.dist - b.dist);
+
+          renderPanel(displayName, lat, lon, radius, nearby);
+
+        } catch(e) {
+          setStatus(&#39;❌ Search failed. Check your internet connection.&#39;);
+          setTimeout(() => setStatus(&#39;&#39;), 3000);
+        }
+      }
+    </script>
+    
+    
+            <div class=&quot;folium-map&quot; id=&quot;map_c8bef5a22fe35d97c7b3aca125851df1&quot; ></div>
+        
+</body>
+<script>
+    
+    
+            var map_c8bef5a22fe35d97c7b3aca125851df1 = L.map(
+                &quot;map_c8bef5a22fe35d97c7b3aca125851df1&quot;,
+                {
+                    center: [13.002773333333332, 77.61162666666665],
+                    crs: L.CRS.EPSG3857,
+                    ...{
+  &quot;zoom&quot;: 12,
+  &quot;zoomControl&quot;: true,
+  &quot;preferCanvas&quot;: false,
+}
+
+                }
+            );
+
+            
+
+        
+    
+            var tile_layer_b9fb1519d6ba27de01fcd9fc747474b4 = L.tileLayer(
+                &quot;https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png&quot;,
+                {
+  &quot;minZoom&quot;: 0,
+  &quot;maxZoom&quot;: 20,
+  &quot;maxNativeZoom&quot;: 20,
+  &quot;noWrap&quot;: false,
+  &quot;attribution&quot;: &quot;\u0026copy; \u003ca href=\&quot;https://www.openstreetmap.org/copyright\&quot;\u003eOpenStreetMap\u003c/a\u003e contributors \u0026copy; \u003ca href=\&quot;https://carto.com/attributions\&quot;\u003eCARTO\u003c/a\u003e&quot;,
+  &quot;subdomains&quot;: &quot;abcd&quot;,
+  &quot;detectRetina&quot;: false,
+  &quot;tms&quot;: false,
+  &quot;opacity&quot;: 1,
+}
+
+            );
+        
+    
+            tile_layer_b9fb1519d6ba27de01fcd9fc747474b4.addTo(map_c8bef5a22fe35d97c7b3aca125851df1);
+        
+    
+            var circle_marker_443db7d62d7f54274cb147b856004659 = L.circleMarker(
+                [13.047, 77.62],
+                {&quot;bubblingMouseEvents&quot;: true, &quot;color&quot;: &quot;#ef4444&quot;, &quot;dashArray&quot;: null, &quot;dashOffset&quot;: null, &quot;fill&quot;: true, &quot;fillColor&quot;: &quot;#ef4444&quot;, &quot;fillOpacity&quot;: 0.85, &quot;fillRule&quot;: &quot;evenodd&quot;, &quot;lineCap&quot;: &quot;round&quot;, &quot;lineJoin&quot;: &quot;round&quot;, &quot;opacity&quot;: 1.0, &quot;radius&quot;: 10, &quot;stroke&quot;: true, &quot;weight&quot;: 3}
+            ).addTo(map_c8bef5a22fe35d97c7b3aca125851df1);
+        
+    
+        var popup_0772753f3f7a570cbaf166c4f59bd452 = L.popup({
+  &quot;maxWidth&quot;: 240,
+});
+
+        
+            
+                var html_1759218d5d27ca8e7f3983f26772f2b7 = $(`<div id=&quot;html_1759218d5d27ca8e7f3983f26772f2b7&quot; style=&quot;width: 100.0%; height: 100.0%;&quot;><div style=&#39;font-family:sans-serif;min-width:180px;padding:4px&#39;><b style=&#39;font-size:1.05em;color:#1e293b&#39;>Manyata Tech Park</b><br><span style=&quot;color:#d97706;font-weight:700&quot;>⭐ Top 10 Site</span><hr style=&#39;margin:6px 0;border-color:#e2e8f0&#39;><table style=&#39;font-size:0.85em;width:100%&#39;><tr><td><b>Lat / Lon</b></td><td>13.047, 77.62</td></tr><tr><td><b>AHP Score</b></td><td>0.854</td></tr><tr><td><b>Demand</b></td><td>0.657</td></tr><tr><td><b>Final Score</b></td><td><b style=&#39;color:#16a34a&#39;>0.655</b></td></tr><tr><td><b>Rank</b></td><td><b>#1</b></td></tr></table></div></div>`)[0];
+                popup_0772753f3f7a570cbaf166c4f59bd452.setContent(html_1759218d5d27ca8e7f3983f26772f2b7);
+            
+        
+
+        circle_marker_443db7d62d7f54274cb147b856004659.bindPopup(popup_0772753f3f7a570cbaf166c4f59bd452)
+        ;
+
+        
+    
+    
+            circle_marker_443db7d62d7f54274cb147b856004659.bindTooltip(
+                `<div>
+                     Manyata Tech Park | Rank #1 | Score 0.655
+                 </div>`,
+                {
+  &quot;sticky&quot;: true,
+}
+            );
+        
+    
+            var circle_marker_e6ba21d24c9c1769485825004bbc82cb = L.circleMarker(
+                [12.975, 77.535],
+                {&quot;bubblingMouseEvents&quot;: true, &quot;color&quot;: &quot;#ef4444&quot;, &quot;dashArray&quot;: null, &quot;dashOffset&quot;: null, &quot;fill&quot;: true, &quot;fillColor&quot;: &quot;#ef4444&quot;, &quot;fillOpacity&quot;: 0.85, &quot;fillRule&quot;: &quot;evenodd&quot;, &quot;lineCap&quot;: &quot;round&quot;, &quot;lineJoin&quot;: &quot;round&quot;, &quot;opacity&quot;: 1.0, &quot;radius&quot;: 10, &quot;stroke&quot;: true, &quot;weight&quot;: 3}
+            ).addTo(map_c8bef5a22fe35d97c7b3aca125851df1);
+        
+    
+        var popup_d5c132a960bfde6426cc8179ae085b6c = L.popup({
+  &quot;maxWidth&quot;: 240,
+});
+
+        
+            
+                var html_fd76d3d66e7e6e68c7ae0461e49ce830 = $(`<div id=&quot;html_fd76d3d66e7e6e68c7ae0461e49ce830&quot; style=&quot;width: 100.0%; height: 100.0%;&quot;><div style=&#39;font-family:sans-serif;min-width:180px;padding:4px&#39;><b style=&#39;font-size:1.05em;color:#1e293b&#39;>Vijayanagar</b><br><span style=&quot;color:#d97706;font-weight:700&quot;>⭐ Top 10 Site</span><hr style=&#39;margin:6px 0;border-color:#e2e8f0&#39;><table style=&#39;font-size:0.85em;width:100%&#39;><tr><td><b>Lat / Lon</b></td><td>12.975, 77.535</td></tr><tr><td><b>AHP Score</b></td><td>0.789</td></tr><tr><td><b>Demand</b></td><td>0.513</td></tr><tr><td><b>Final Score</b></td><td><b style=&#39;color:#16a34a&#39;>0.622</b></td></tr><tr><td><b>Rank</b></td><td><b>#2</b></td></tr></table></div></div>`)[0];
+                popup_d5c132a960bfde6426cc8179ae085b6c.setContent(html_fd76d3d66e7e6e68c7ae0461e49ce830);
+            
+        
+
+        circle_marker_e6ba21d24c9c1769485825004bbc82cb.bindPopup(popup_d5c132a960bfde6426cc8179ae085b6c)
+        ;
+
+        
+    
+    
+            circle_marker_e6ba21d24c9c1769485825004bbc82cb.bindTooltip(
+                `<div>
+                     Vijayanagar | Rank #2 | Score 0.622
+                 </div>`,
+                {
+  &quot;sticky&quot;: true,
+}
+            );
+        
+    
+            var circle_marker_5864b841028437fa16f6c3ad9bfa88e3 = L.circleMarker(
+                [13.028, 77.639],
+                {&quot;bubblingMouseEvents&quot;: true, &quot;color&quot;: &quot;#ef4444&quot;, &quot;dashArray&quot;: null, &quot;dashOffset&quot;: null, &quot;fill&quot;: true, &quot;fillColor&quot;: &quot;#ef4444&quot;, &quot;fillOpacity&quot;: 0.85, &quot;fillRule&quot;: &quot;evenodd&quot;, &quot;lineCap&quot;: &quot;round&quot;, &quot;lineJoin&quot;: &quot;round&quot;, &quot;opacity&quot;: 1.0, &quot;radius&quot;: 10, &quot;stroke&quot;: true, &quot;weight&quot;: 3}
+            ).addTo(map_c8bef5a22fe35d97c7b3aca125851df1);
+        
+    
+        var popup_d4ad45a443e182e799ab3855daedf567 = L.popup({
+  &quot;maxWidth&quot;: 240,
+});
+
+        
+            
+                var html_54cc784479d1dc2497a29d0364bfc2b6 = $(`<div id=&quot;html_54cc784479d1dc2497a29d0364bfc2b6&quot; style=&quot;width: 100.0%; height: 100.0%;&quot;><div style=&#39;font-family:sans-serif;min-width:180px;padding:4px&#39;><b style=&#39;font-size:1.05em;color:#1e293b&#39;>Kalyan Nagar</b><br><span style=&quot;color:#d97706;font-weight:700&quot;>⭐ Top 10 Site</span><hr style=&#39;margin:6px 0;border-color:#e2e8f0&#39;><table style=&#39;font-size:0.85em;width:100%&#39;><tr><td><b>Lat / Lon</b></td><td>13.028, 77.639</td></tr><tr><td><b>AHP Score</b></td><td>0.77</td></tr><tr><td><b>Demand</b></td><td>0.451</td></tr><tr><td><b>Final Score</b></td><td><b style=&#39;color:#16a34a&#39;>0.586</b></td></tr><tr><td><b>Rank</b></td><td><b>#3</b></td></tr></table></div></div>`)[0];
+                popup_d4ad45a443e182e799ab3855daedf567.setContent(html_54cc784479d1dc2497a29d0364bfc2b6);
+            
+        
+
+        circle_marker_5864b841028437fa16f6c3ad9bfa88e3.bindPopup(popup_d4ad45a443e182e799ab3855daedf567)
+        ;
+
+        
+    
+    
+            circle_marker_5864b841028437fa16f6c3ad9bfa88e3.bindTooltip(
+                `<div>
+                     Kalyan Nagar | Rank #3 | Score 0.586
+                 </div>`,
+                {
+  &quot;sticky&quot;: true,
+}
+            );
+        
+    
+            var circle_marker_c4c996944b3e48bd073e0c53ce7ba0be = L.circleMarker(
+                [12.995, 77.595],
+                {&quot;bubblingMouseEvents&quot;: true, &quot;color&quot;: &quot;#ef4444&quot;, &quot;dashArray&quot;: null, &quot;dashOffset&quot;: null, &quot;fill&quot;: true, &quot;fillColor&quot;: &quot;#ef4444&quot;, &quot;fillOpacity&quot;: 0.85, &quot;fillRule&quot;: &quot;evenodd&quot;, &quot;lineCap&quot;: &quot;round&quot;, &quot;lineJoin&quot;: &quot;round&quot;, &quot;opacity&quot;: 1.0, &quot;radius&quot;: 10, &quot;stroke&quot;: true, &quot;weight&quot;: 3}
+            ).addTo(map_c8bef5a22fe35d97c7b3aca125851df1);
+        
+    
+        var popup_ed364f06150ffa0092167cf99bca50ee = L.popup({
+  &quot;maxWidth&quot;: 240,
+});
+
+        
+            
+                var html_5fc813dc9e63301fea5e35175c74f8f3 = $(`<div id=&quot;html_5fc813dc9e63301fea5e35175c74f8f3&quot; style=&quot;width: 100.0%; height: 100.0%;&quot;><div style=&#39;font-family:sans-serif;min-width:180px;padding:4px&#39;><b style=&#39;font-size:1.05em;color:#1e293b&#39;>Cunningham Road</b><br><span style=&quot;color:#d97706;font-weight:700&quot;>⭐ Top 10 Site</span><hr style=&#39;margin:6px 0;border-color:#e2e8f0&#39;><table style=&#39;font-size:0.85em;width:100%&#39;><tr><td><b>Lat / Lon</b></td><td>12.995, 77.595</td></tr><tr><td><b>AHP Score</b></td><td>0.614</td></tr><tr><td><b>Demand</b></td><td>0.621</td></tr><tr><td><b>Final Score</b></td><td><b style=&#39;color:#16a34a&#39;>0.581</b></td></tr><tr><td><b>Rank</b></td><td><b>#4</b></td></tr></table></div></div>`)[0];
+                popup_ed364f06150ffa0092167cf99bca50ee.setContent(html_5fc813dc9e63301fea5e35175c74f8f3);
+            
+        
+
+        circle_marker_c4c996944b3e48bd073e0c53ce7ba0be.bindPopup(popup_ed364f06150ffa0092167cf99bca50ee)
+        ;
+
+        
+    
+    
+            circle_marker_c4c996944b3e48bd073e0c53ce7ba0be.bindTooltip(
+                `<div>
+                     Cunningham Road | Rank #4 | Score 0.581
+                 </div>`,
+                {
+  &quot;sticky&quot;: true,
+}
+            );
+        
+    
+            var circle_marker_221d61ff16c76ea2a42ccea5ac67d664 = L.circleMarker(
+                [12.9756, 77.6069],
+                {&quot;bubblingMouseEvents&quot;: true, &quot;color&quot;: &quot;#ef4444&quot;, &quot;dashArray&quot;: null, &quot;dashOffset&quot;: null, &quot;fill&quot;: true, &quot;fillColor&quot;: &quot;#ef4444&quot;, &quot;fillOpacity&quot;: 0.85, &quot;fillRule&quot;: &quot;evenodd&quot;, &quot;lineCap&quot;: &quot;round&quot;, &quot;lineJoin&quot;: &quot;round&quot;, &quot;opacity&quot;: 1.0, &quot;radius&quot;: 10, &quot;stroke&quot;: true, &quot;weight&quot;: 3}
+            ).addTo(map_c8bef5a22fe35d97c7b3aca125851df1);
+        
+    
+        var popup_528d97c6d7d2c25e40a8744b74de2a1d = L.popup({
+  &quot;maxWidth&quot;: 240,
+});
+
+        
+            
+                var html_d0acca09c1766eea12faba5b9fdf53a0 = $(`<div id=&quot;html_d0acca09c1766eea12faba5b9fdf53a0&quot; style=&quot;width: 100.0%; height: 100.0%;&quot;><div style=&#39;font-family:sans-serif;min-width:180px;padding:4px&#39;><b style=&#39;font-size:1.05em;color:#1e293b&#39;>MG Road Metro Station</b><br><span style=&quot;color:#d97706;font-weight:700&quot;>⭐ Top 10 Site</span><hr style=&#39;margin:6px 0;border-color:#e2e8f0&#39;><table style=&#39;font-size:0.85em;width:100%&#39;><tr><td><b>Lat / Lon</b></td><td>12.9756, 77.6069</td></tr><tr><td><b>AHP Score</b></td><td>0.769</td></tr><tr><td><b>Demand</b></td><td>0.637</td></tr><tr><td><b>Final Score</b></td><td><b style=&#39;color:#16a34a&#39;>0.575</b></td></tr><tr><td><b>Rank</b></td><td><b>#5</b></td></tr></table></div></div>`)[0];
+                popup_528d97c6d7d2c25e40a8744b74de2a1d.setContent(html_d0acca09c1766eea12faba5b9fdf53a0);
+            
+        
+
+        circle_marker_221d61ff16c76ea2a42ccea5ac67d664.bindPopup(popup_528d97c6d7d2c25e40a8744b74de2a1d)
+        ;
+
+        
+    
+    
+            circle_marker_221d61ff16c76ea2a42ccea5ac67d664.bindTooltip(
+                `<div>
+                     MG Road Metro Station | Rank #5 | Score 0.575
+                 </div>`,
+                {
+  &quot;sticky&quot;: true,
+}
+            );
+        
+    
+            var circle_marker_a7cc878d7d2710444bd025107e2b71b9 = L.circleMarker(
+                [12.925, 77.5833],
+                {&quot;bubblingMouseEvents&quot;: true, &quot;color&quot;: &quot;#ef4444&quot;, &quot;dashArray&quot;: null, &quot;dashOffset&quot;: null, &quot;fill&quot;: true, &quot;fillColor&quot;: &quot;#ef4444&quot;, &quot;fillOpacity&quot;: 0.85, &quot;fillRule&quot;: &quot;evenodd&quot;, &quot;lineCap&quot;: &quot;round&quot;, &quot;lineJoin&quot;: &quot;round&quot;, &quot;opacity&quot;: 1.0, &quot;radius&quot;: 10, &quot;stroke&quot;: true, &quot;weight&quot;: 3}
+            ).addTo(map_c8bef5a22fe35d97c7b3aca125851df1);
+        
+    
+        var popup_b5b29780bcfd0ebc756decef2ab236b2 = L.popup({
+  &quot;maxWidth&quot;: 240,
+});
+
+        
+            
+                var html_a8ad9a46d435a08e731aeb5f18c6cd46 = $(`<div id=&quot;html_a8ad9a46d435a08e731aeb5f18c6cd46&quot; style=&quot;width: 100.0%; height: 100.0%;&quot;><div style=&#39;font-family:sans-serif;min-width:180px;padding:4px&#39;><b style=&#39;font-size:1.05em;color:#1e293b&#39;>Jayanagar 4th Block</b><br><span style=&quot;color:#d97706;font-weight:700&quot;>⭐ Top 10 Site</span><hr style=&#39;margin:6px 0;border-color:#e2e8f0&#39;><table style=&#39;font-size:0.85em;width:100%&#39;><tr><td><b>Lat / Lon</b></td><td>12.925, 77.5833</td></tr><tr><td><b>AHP Score</b></td><td>0.731</td></tr><tr><td><b>Demand</b></td><td>0.639</td></tr><tr><td><b>Final Score</b></td><td><b style=&#39;color:#16a34a&#39;>0.557</b></td></tr><tr><td><b>Rank</b></td><td><b>#6</b></td></tr></table></div></div>`)[0];
+                popup_b5b29780bcfd0ebc756decef2ab236b2.setContent(html_a8ad9a46d435a08e731aeb5f18c6cd46);
+            
+        
+
+        circle_marker_a7cc878d7d2710444bd025107e2b71b9.bindPopup(popup_b5b29780bcfd0ebc756decef2ab236b2)
+        ;
+
+        
+    
+    
+            circle_marker_a7cc878d7d2710444bd025107e2b71b9.bindTooltip(
+                `<div>
+                     Jayanagar 4th Block | Rank #6 | Score 0.557
+                 </div>`,
+                {
+  &quot;sticky&quot;: true,
+}
+            );
+        
+    
+            var circle_marker_12db6182c196fd491d65f2aabd27a749 = L.circleMarker(
+                [12.9716, 77.6081],
+                {&quot;bubblingMouseEvents&quot;: true, &quot;color&quot;: &quot;#ef4444&quot;, &quot;dashArray&quot;: null, &quot;dashOffset&quot;: null, &quot;fill&quot;: true, &quot;fillColor&quot;: &quot;#ef4444&quot;, &quot;fillOpacity&quot;: 0.85, &quot;fillRule&quot;: &quot;evenodd&quot;, &quot;lineCap&quot;: &quot;round&quot;, &quot;lineJoin&quot;: &quot;round&quot;, &quot;opacity&quot;: 1.0, &quot;radius&quot;: 10, &quot;stroke&quot;: true, &quot;weight&quot;: 3}
+            ).addTo(map_c8bef5a22fe35d97c7b3aca125851df1);
+        
+    
+        var popup_9f7f553bd03bba4ebbac0e5d5baf6032 = L.popup({
+  &quot;maxWidth&quot;: 240,
+});
+
+        
+            
+                var html_863edf94704267affd3234f18ee498df = $(`<div id=&quot;html_863edf94704267affd3234f18ee498df&quot; style=&quot;width: 100.0%; height: 100.0%;&quot;><div style=&#39;font-family:sans-serif;min-width:180px;padding:4px&#39;><b style=&#39;font-size:1.05em;color:#1e293b&#39;>Brigade Road</b><br><span style=&quot;color:#d97706;font-weight:700&quot;>⭐ Top 10 Site</span><hr style=&#39;margin:6px 0;border-color:#e2e8f0&#39;><table style=&#39;font-size:0.85em;width:100%&#39;><tr><td><b>Lat / Lon</b></td><td>12.9716, 77.6081</td></tr><tr><td><b>AHP Score</b></td><td>0.745</td></tr><tr><td><b>Demand</b></td><td>0.582</td></tr><tr><td><b>Final Score</b></td><td><b style=&#39;color:#16a34a&#39;>0.547</b></td></tr><tr><td><b>Rank</b></td><td><b>#7</b></td></tr></table></div></div>`)[0];
+                popup_9f7f553bd03bba4ebbac0e5d5baf6032.setContent(html_863edf94704267affd3234f18ee498df);
+            
+        
+
+        circle_marker_12db6182c196fd491d65f2aabd27a749.bindPopup(popup_9f7f553bd03bba4ebbac0e5d5baf6032)
+        ;
+
+        
+    
+    
+            circle_marker_12db6182c196fd491d65f2aabd27a749.bindTooltip(
+                `<div>
+                     Brigade Road | Rank #7 | Score 0.547
+                 </div>`,
+                {
+  &quot;sticky&quot;: true,
+}
+            );
+        
+    
+            var circle_marker_92ed8017d2f1eab2677c62739651bf8c = L.circleMarker(
+                [12.9716, 77.6081],
+                {&quot;bubblingMouseEvents&quot;: true, &quot;color&quot;: &quot;#ef4444&quot;, &quot;dashArray&quot;: null, &quot;dashOffset&quot;: null, &quot;fill&quot;: true, &quot;fillColor&quot;: &quot;#ef4444&quot;, &quot;fillOpacity&quot;: 0.85, &quot;fillRule&quot;: &quot;evenodd&quot;, &quot;lineCap&quot;: &quot;round&quot;, &quot;lineJoin&quot;: &quot;round&quot;, &quot;opacity&quot;: 1.0, &quot;radius&quot;: 10, &quot;stroke&quot;: true, &quot;weight&quot;: 3}
+            ).addTo(map_c8bef5a22fe35d97c7b3aca125851df1);
+        
+    
+        var popup_c557aea81506f6475674e820440d056d = L.popup({
+  &quot;maxWidth&quot;: 240,
+});
+
+        
+            
+                var html_9fd34c8959d6e2622a078e82bd072bfe = $(`<div id=&quot;html_9fd34c8959d6e2622a078e82bd072bfe&quot; style=&quot;width: 100.0%; height: 100.0%;&quot;><div style=&#39;font-family:sans-serif;min-width:180px;padding:4px&#39;><b style=&#39;font-size:1.05em;color:#1e293b&#39;>Residency Road</b><br><span style=&quot;color:#d97706;font-weight:700&quot;>⭐ Top 10 Site</span><hr style=&#39;margin:6px 0;border-color:#e2e8f0&#39;><table style=&#39;font-size:0.85em;width:100%&#39;><tr><td><b>Lat / Lon</b></td><td>12.9716, 77.6081</td></tr><tr><td><b>AHP Score</b></td><td>0.745</td></tr><tr><td><b>Demand</b></td><td>0.582</td></tr><tr><td><b>Final Score</b></td><td><b style=&#39;color:#16a34a&#39;>0.547</b></td></tr><tr><td><b>Rank</b></td><td><b>#7</b></td></tr></table></div></div>`)[0];
+                popup_c557aea81506f6475674e820440d056d.setContent(html_9fd34c8959d6e2622a078e82bd072bfe);
+            
+        
+
+        circle_marker_92ed8017d2f1eab2677c62739651bf8c.bindPopup(popup_c557aea81506f6475674e820440d056d)
+        ;
+
+        
+    
+    
+            circle_marker_92ed8017d2f1eab2677c62739651bf8c.bindTooltip(
+                `<div>
+                     Residency Road | Rank #7 | Score 0.547
+                 </div>`,
+                {
+  &quot;sticky&quot;: true,
+}
+            );
+        
+    
+            var circle_marker_93a223089e4b6520147e7032047052b2 = L.circleMarker(
+                [13.035, 77.645],
+                {&quot;bubblingMouseEvents&quot;: true, &quot;color&quot;: &quot;#ef4444&quot;, &quot;dashArray&quot;: null, &quot;dashOffset&quot;: null, &quot;fill&quot;: true, &quot;fillColor&quot;: &quot;#ef4444&quot;, &quot;fillOpacity&quot;: 0.85, &quot;fillRule&quot;: &quot;evenodd&quot;, &quot;lineCap&quot;: &quot;round&quot;, &quot;lineJoin&quot;: &quot;round&quot;, &quot;opacity&quot;: 1.0, &quot;radius&quot;: 10, &quot;stroke&quot;: true, &quot;weight&quot;: 3}
+            ).addTo(map_c8bef5a22fe35d97c7b3aca125851df1);
+        
+    
+        var popup_27f68902399bbb7f40d1d2b8d1f6f2ff = L.popup({
+  &quot;maxWidth&quot;: 240,
+});
+
+        
+            
+                var html_09651dbe844e2f9329bc30f814dab2a3 = $(`<div id=&quot;html_09651dbe844e2f9329bc30f814dab2a3&quot; style=&quot;width: 100.0%; height: 100.0%;&quot;><div style=&#39;font-family:sans-serif;min-width:180px;padding:4px&#39;><b style=&#39;font-size:1.05em;color:#1e293b&#39;>Hennur Main Road</b><br><span style=&quot;color:#d97706;font-weight:700&quot;>⭐ Top 10 Site</span><hr style=&#39;margin:6px 0;border-color:#e2e8f0&#39;><table style=&#39;font-size:0.85em;width:100%&#39;><tr><td><b>Lat / Lon</b></td><td>13.035, 77.645</td></tr><tr><td><b>AHP Score</b></td><td>0.589</td></tr><tr><td><b>Demand</b></td><td>0.482</td></tr><tr><td><b>Final Score</b></td><td><b style=&#39;color:#16a34a&#39;>0.529</b></td></tr><tr><td><b>Rank</b></td><td><b>#9</b></td></tr></table></div></div>`)[0];
+                popup_27f68902399bbb7f40d1d2b8d1f6f2ff.setContent(html_09651dbe844e2f9329bc30f814dab2a3);
+            
+        
+
+        circle_marker_93a223089e4b6520147e7032047052b2.bindPopup(popup_27f68902399bbb7f40d1d2b8d1f6f2ff)
+        ;
+
+        
+    
+    
+            circle_marker_93a223089e4b6520147e7032047052b2.bindTooltip(
+                `<div>
+                     Hennur Main Road | Rank #9 | Score 0.529
+                 </div>`,
+                {
+  &quot;sticky&quot;: true,
+}
+            );
+        
+    
+            var circle_marker_cf79b6153996d5e4d6f8b1d230fdcdfb = L.circleMarker(
+                [13.055, 77.655],
+                {&quot;bubblingMouseEvents&quot;: true, &quot;color&quot;: &quot;#ef4444&quot;, &quot;dashArray&quot;: null, &quot;dashOffset&quot;: null, &quot;fill&quot;: true, &quot;fillColor&quot;: &quot;#ef4444&quot;, &quot;fillOpacity&quot;: 0.85, &quot;fillRule&quot;: &quot;evenodd&quot;, &quot;lineCap&quot;: &quot;round&quot;, &quot;lineJoin&quot;: &quot;round&quot;, &quot;opacity&quot;: 1.0, &quot;radius&quot;: 10, &quot;stroke&quot;: true, &quot;weight&quot;: 3}
+            ).addTo(map_c8bef5a22fe35d97c7b3aca125851df1);
+        
+    
+        var popup_6d5870961a154d398451a504b980fddd = L.popup({
+  &quot;maxWidth&quot;: 240,
+});
+
+        
+            
+                var html_355de0ae2746504d7b2ee0f26b543730 = $(`<div id=&quot;html_355de0ae2746504d7b2ee0f26b543730&quot; style=&quot;width: 100.0%; height: 100.0%;&quot;><div style=&#39;font-family:sans-serif;min-width:180px;padding:4px&#39;><b style=&#39;font-size:1.05em;color:#1e293b&#39;>Thanisandra Main Road</b><br><span style=&quot;color:#d97706;font-weight:700&quot;>⭐ Top 10 Site</span><hr style=&#39;margin:6px 0;border-color:#e2e8f0&#39;><table style=&#39;font-size:0.85em;width:100%&#39;><tr><td><b>Lat / Lon</b></td><td>13.055, 77.655</td></tr><tr><td><b>AHP Score</b></td><td>0.588</td></tr><tr><td><b>Demand</b></td><td>0.444</td></tr><tr><td><b>Final Score</b></td><td><b style=&#39;color:#16a34a&#39;>0.519</b></td></tr><tr><td><b>Rank</b></td><td><b>#10</b></td></tr></table></div></div>`)[0];
+                popup_6d5870961a154d398451a504b980fddd.setContent(html_355de0ae2746504d7b2ee0f26b543730);
+            
+        
+
+        circle_marker_cf79b6153996d5e4d6f8b1d230fdcdfb.bindPopup(popup_6d5870961a154d398451a504b980fddd)
+        ;
+
+        
+    
+    
+            circle_marker_cf79b6153996d5e4d6f8b1d230fdcdfb.bindTooltip(
+                `<div>
+                     Thanisandra Main Road | Rank #10 | Score 0.519
+                 </div>`,
+                {
+  &quot;sticky&quot;: true,
+}
+            );
+        
+    
+            var circle_marker_99ab1e10cc7e767835fd8a233569b35a = L.circleMarker(
+                [13.0358, 77.597],
+                {&quot;bubblingMouseEvents&quot;: true, &quot;color&quot;: &quot;#3b82f6&quot;, &quot;dashArray&quot;: null, &quot;dashOffset&quot;: null, &quot;fill&quot;: true, &quot;fillColor&quot;: &quot;#3b82f6&quot;, &quot;fillOpacity&quot;: 0.85, &quot;fillRule&quot;: &quot;evenodd&quot;, &quot;lineCap&quot;: &quot;round&quot;, &quot;lineJoin&quot;: &quot;round&quot;, &quot;opacity&quot;: 1.0, &quot;radius&quot;: 6, &quot;stroke&quot;: true, &quot;weight&quot;: 3}
+            ).addTo(map_c8bef5a22fe35d97c7b3aca125851df1);
+        
+    
+        var popup_59441d9f3bfc25047e1a9aa390bd75ae = L.popup({
+  &quot;maxWidth&quot;: 240,
+});
+
+        
+            
+                var html_efa738d867cf02fbaabc2a723e91daab = $(`<div id=&quot;html_efa738d867cf02fbaabc2a723e91daab&quot; style=&quot;width: 100.0%; height: 100.0%;&quot;><div style=&#39;font-family:sans-serif;min-width:180px;padding:4px&#39;><b style=&#39;font-size:1.05em;color:#1e293b&#39;>Hebbal Flyover</b><hr style=&#39;margin:6px 0;border-color:#e2e8f0&#39;><table style=&#39;font-size:0.85em;width:100%&#39;><tr><td><b>Lat / Lon</b></td><td>13.0358, 77.597</td></tr><tr><td><b>AHP Score</b></td><td>0.646</td></tr><tr><td><b>Demand</b></td><td>0.449</td></tr><tr><td><b>Final Score</b></td><td><b style=&#39;color:#16a34a&#39;>0.513</b></td></tr><tr><td><b>Rank</b></td><td><b>#11</b></td></tr></table></div></div>`)[0];
+                popup_59441d9f3bfc25047e1a9aa390bd75ae.setContent(html_efa738d867cf02fbaabc2a723e91daab);
+            
+        
+
+        circle_marker_99ab1e10cc7e767835fd8a233569b35a.bindPopup(popup_59441d9f3bfc25047e1a9aa390bd75ae)
+        ;
+
+        
+    
+    
+            circle_marker_99ab1e10cc7e767835fd8a233569b35a.bindTooltip(
+                `<div>
+                     Hebbal Flyover | Rank #11 | Score 0.513
+                 </div>`,
+                {
+  &quot;sticky&quot;: true,
+}
+            );
+        
+    
+            var circle_marker_74eb94b2a5462b6e61604d2f6cb23b69 = L.circleMarker(
+                [12.989, 77.618],
+                {&quot;bubblingMouseEvents&quot;: true, &quot;color&quot;: &quot;#3b82f6&quot;, &quot;dashArray&quot;: null, &quot;dashOffset&quot;: null, &quot;fill&quot;: true, &quot;fillColor&quot;: &quot;#3b82f6&quot;, &quot;fillOpacity&quot;: 0.85, &quot;fillRule&quot;: &quot;evenodd&quot;, &quot;lineCap&quot;: &quot;round&quot;, &quot;lineJoin&quot;: &quot;round&quot;, &quot;opacity&quot;: 1.0, &quot;radius&quot;: 6, &quot;stroke&quot;: true, &quot;weight&quot;: 3}
+            ).addTo(map_c8bef5a22fe35d97c7b3aca125851df1);
+        
+    
+        var popup_62fbbd10d63155b70c76c16e058f19c7 = L.popup({
+  &quot;maxWidth&quot;: 240,
+});
+
+        
+            
+                var html_3baf272728ba708b0298845542be464d = $(`<div id=&quot;html_3baf272728ba708b0298845542be464d&quot; style=&quot;width: 100.0%; height: 100.0%;&quot;><div style=&#39;font-family:sans-serif;min-width:180px;padding:4px&#39;><b style=&#39;font-size:1.05em;color:#1e293b&#39;>Frazer Town</b><hr style=&#39;margin:6px 0;border-color:#e2e8f0&#39;><table style=&#39;font-size:0.85em;width:100%&#39;><tr><td><b>Lat / Lon</b></td><td>12.989, 77.618</td></tr><tr><td><b>AHP Score</b></td><td>0.527</td></tr><tr><td><b>Demand</b></td><td>0.511</td></tr><tr><td><b>Final Score</b></td><td><b style=&#39;color:#16a34a&#39;>0.417</b></td></tr><tr><td><b>Rank</b></td><td><b>#12</b></td></tr></table></div></div>`)[0];
+                popup_62fbbd10d63155b70c76c16e058f19c7.setContent(html_3baf272728ba708b0298845542be464d);
+            
+        
+
+        circle_marker_74eb94b2a5462b6e61604d2f6cb23b69.bindPopup(popup_62fbbd10d63155b70c76c16e058f19c7)
+        ;
+
+        
+    
+    
+            circle_marker_74eb94b2a5462b6e61604d2f6cb23b69.bindTooltip(
+                `<div>
+                     Frazer Town | Rank #12 | Score 0.417
+                 </div>`,
+                {
+  &quot;sticky&quot;: true,
+}
+            );
+        
+    
+            var circle_marker_dc063bdaffe54faa9c6f7d242d02ca6c = L.circleMarker(
+                [13.012, 77.638],
+                {&quot;bubblingMouseEvents&quot;: true, &quot;color&quot;: &quot;#3b82f6&quot;, &quot;dashArray&quot;: null, &quot;dashOffset&quot;: null, &quot;fill&quot;: true, &quot;fillColor&quot;: &quot;#3b82f6&quot;, &quot;fillOpacity&quot;: 0.85, &quot;fillRule&quot;: &quot;evenodd&quot;, &quot;lineCap&quot;: &quot;round&quot;, &quot;lineJoin&quot;: &quot;round&quot;, &quot;opacity&quot;: 1.0, &quot;radius&quot;: 6, &quot;stroke&quot;: true, &quot;weight&quot;: 3}
+            ).addTo(map_c8bef5a22fe35d97c7b3aca125851df1);
+        
+    
+        var popup_7b213c30642a96bbd6b1c21f1fc20cd5 = L.popup({
+  &quot;maxWidth&quot;: 240,
+});
+
+        
+            
+                var html_e50e0d0123e485619d4f329fe6b8052f = $(`<div id=&quot;html_e50e0d0123e485619d4f329fe6b8052f&quot; style=&quot;width: 100.0%; height: 100.0%;&quot;><div style=&#39;font-family:sans-serif;min-width:180px;padding:4px&#39;><b style=&#39;font-size:1.05em;color:#1e293b&#39;>Kammanahalli Main Road</b><hr style=&#39;margin:6px 0;border-color:#e2e8f0&#39;><table style=&#39;font-size:0.85em;width:100%&#39;><tr><td><b>Lat / Lon</b></td><td>13.012, 77.638</td></tr><tr><td><b>AHP Score</b></td><td>0.518</td></tr><tr><td><b>Demand</b></td><td>0.316</td></tr><tr><td><b>Final Score</b></td><td><b style=&#39;color:#16a34a&#39;>0.393</b></td></tr><tr><td><b>Rank</b></td><td><b>#13</b></td></tr></table></div></div>`)[0];
+                popup_7b213c30642a96bbd6b1c21f1fc20cd5.setContent(html_e50e0d0123e485619d4f329fe6b8052f);
+            
+        
+
+        circle_marker_dc063bdaffe54faa9c6f7d242d02ca6c.bindPopup(popup_7b213c30642a96bbd6b1c21f1fc20cd5)
+        ;
+
+        
+    
+    
+            circle_marker_dc063bdaffe54faa9c6f7d242d02ca6c.bindTooltip(
+                `<div>
+                     Kammanahalli Main Road | Rank #13 | Score 0.393
+                 </div>`,
+                {
+  &quot;sticky&quot;: true,
+}
+            );
+        
+    
+            var circle_marker_9498b2af2c9450248f75a7d6f49e4049 = L.circleMarker(
+                [12.981, 77.621],
+                {&quot;bubblingMouseEvents&quot;: true, &quot;color&quot;: &quot;#3b82f6&quot;, &quot;dashArray&quot;: null, &quot;dashOffset&quot;: null, &quot;fill&quot;: true, &quot;fillColor&quot;: &quot;#3b82f6&quot;, &quot;fillOpacity&quot;: 0.85, &quot;fillRule&quot;: &quot;evenodd&quot;, &quot;lineCap&quot;: &quot;round&quot;, &quot;lineJoin&quot;: &quot;round&quot;, &quot;opacity&quot;: 1.0, &quot;radius&quot;: 6, &quot;stroke&quot;: true, &quot;weight&quot;: 3}
+            ).addTo(map_c8bef5a22fe35d97c7b3aca125851df1);
+        
+    
+        var popup_86d26974168978dd901d42cfe1ba95e3 = L.popup({
+  &quot;maxWidth&quot;: 240,
+});
+
+        
+            
+                var html_e61b203db9f4408f2876d1473b1fad91 = $(`<div id=&quot;html_e61b203db9f4408f2876d1473b1fad91&quot; style=&quot;width: 100.0%; height: 100.0%;&quot;><div style=&#39;font-family:sans-serif;min-width:180px;padding:4px&#39;><b style=&#39;font-size:1.05em;color:#1e293b&#39;>Ulsoor Lake Area</b><hr style=&#39;margin:6px 0;border-color:#e2e8f0&#39;><table style=&#39;font-size:0.85em;width:100%&#39;><tr><td><b>Lat / Lon</b></td><td>12.981, 77.621</td></tr><tr><td><b>AHP Score</b></td><td>0.396</td></tr><tr><td><b>Demand</b></td><td>0.586</td></tr><tr><td><b>Final Score</b></td><td><b style=&#39;color:#16a34a&#39;>0.374</b></td></tr><tr><td><b>Rank</b></td><td><b>#14</b></td></tr></table></div></div>`)[0];
+                popup_86d26974168978dd901d42cfe1ba95e3.setContent(html_e61b203db9f4408f2876d1473b1fad91);
+            
+        
+
+        circle_marker_9498b2af2c9450248f75a7d6f49e4049.bindPopup(popup_86d26974168978dd901d42cfe1ba95e3)
+        ;
+
+        
+    
+    
+            circle_marker_9498b2af2c9450248f75a7d6f49e4049.bindTooltip(
+                `<div>
+                     Ulsoor Lake Area | Rank #14 | Score 0.374
+                 </div>`,
+                {
+  &quot;sticky&quot;: true,
+}
+            );
+        
+    
+            var circle_marker_2e56cde2be37c26c97d4e5f1282ad942 = L.circleMarker(
+                [13.045, 77.605],
+                {&quot;bubblingMouseEvents&quot;: true, &quot;color&quot;: &quot;#3b82f6&quot;, &quot;dashArray&quot;: null, &quot;dashOffset&quot;: null, &quot;fill&quot;: true, &quot;fillColor&quot;: &quot;#3b82f6&quot;, &quot;fillOpacity&quot;: 0.85, &quot;fillRule&quot;: &quot;evenodd&quot;, &quot;lineCap&quot;: &quot;round&quot;, &quot;lineJoin&quot;: &quot;round&quot;, &quot;opacity&quot;: 1.0, &quot;radius&quot;: 6, &quot;stroke&quot;: true, &quot;weight&quot;: 3}
+            ).addTo(map_c8bef5a22fe35d97c7b3aca125851df1);
+        
+    
+        var popup_f8cad2dd70e2562db4eab2243ea42f40 = L.popup({
+  &quot;maxWidth&quot;: 240,
+});
+
+        
+            
+                var html_5e9e2a052c725cec538effa890aca685 = $(`<div id=&quot;html_5e9e2a052c725cec538effa890aca685&quot; style=&quot;width: 100.0%; height: 100.0%;&quot;><div style=&#39;font-family:sans-serif;min-width:180px;padding:4px&#39;><b style=&#39;font-size:1.05em;color:#1e293b&#39;>Nagawara</b><hr style=&#39;margin:6px 0;border-color:#e2e8f0&#39;><table style=&#39;font-size:0.85em;width:100%&#39;><tr><td><b>Lat / Lon</b></td><td>13.045, 77.605</td></tr><tr><td><b>AHP Score</b></td><td>0.349</td></tr><tr><td><b>Demand</b></td><td>0.486</td></tr><tr><td><b>Final Score</b></td><td><b style=&#39;color:#16a34a&#39;>0.342</b></td></tr><tr><td><b>Rank</b></td><td><b>#15</b></td></tr></table></div></div>`)[0];
+                popup_f8cad2dd70e2562db4eab2243ea42f40.setContent(html_5e9e2a052c725cec538effa890aca685);
+            
+        
+
+        circle_marker_2e56cde2be37c26c97d4e5f1282ad942.bindPopup(popup_f8cad2dd70e2562db4eab2243ea42f40)
+        ;
+
+        
+    
+    
+            circle_marker_2e56cde2be37c26c97d4e5f1282ad942.bindTooltip(
+                `<div>
+                     Nagawara | Rank #15 | Score 0.342
+                 </div>`,
+                {
+  &quot;sticky&quot;: true,
+}
+            );
+        
+</script>
+</html>" title="EV Site Map" sandbox="allow-scripts allow-same-origin"></iframe>
+      </div>
+    </div>
+
+    <!-- ══ CHARTS TAB ══ -->
+    <div id="tab-charts" class="tab-content">
+      <div class="chart-grid-2">
+        <div class="chart-card"><div id="chart-ahp"></div></div>
+        <div class="chart-card"><div id="chart-radar"></div></div>
+      </div>
+      <div class="chart-card full"><div id="chart-dist"></div></div>
+      <div class="chart-card full" style="margin-top:20px"><div id="chart-scatter"></div></div>
+    </div>
+
+    <!-- ══ RANKINGS TAB ══ -->
+    <div id="tab-table" class="tab-content">
+      <div class="table-wrap">
+        <div class="table-header">
+          <h3>All 15 EV Charging Sites - Interactive Table</h3>
+          <span style="font-size:0.8rem;color:var(--muted)">Search, filter, sort, and export all sites</span>
+        </div>
+        <table id="sitesTable" class="display" style="width:100%">
+          <thead>
+            <tr>
+              <th>Rank</th>
+              <th>Site ID</th>
+              <th>AHP Score</th>
+              <th>AHP Rank</th>
+              <th>Demand</th>
+              <th>Competition</th>
+              <th>Distance (km)</th>
+              <th>Final Score</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- ══ ML MODEL TAB ══ -->
+    <div id="tab-model" class="tab-content">
+      <div class="model-stats">
+        <div class="model-stat">
+          <div class="val">0.8251</div>
+          <div class="lbl">R² Score</div>
+        </div>
+        <div class="model-stat">
+          <div class="val" style="color:#f59e0b">0.0418</div>
+          <div class="lbl">Mean Absolute Error</div>
+        </div>
+        <div class="model-stat">
+          <div class="val" style="color:#6366f1">100</div>
+          <div class="lbl">Estimators (Trees)</div>
+        </div>
+      </div>
+      <div class="chart-card full"><div id="chart-importance"></div></div>
+      <div class="chart-card full" style="margin-top:20px"><div id="chart-scatter-model"></div></div>
+    </div>
+  </main>
+</div>
+
+<script>
+  const charts = {
+    ahp:        {"data": [{"marker": {"color": ["#2ecc71", "#3498db", "#9b59b6", "#e74c3c", "#f39c12", "#1abc9c", "#e67e22"]}, "text": ["30.7%", "20.8%", "13.4%", "6.9%", "11.1%", "4.5%", "12.7%"], "textposition": "outside", "x": ["Roads", "Grid", "Population", "Land Cost", "Traffic", "Env. Sensitivity", "Commercial"], "y": [30.7, 20.76, 13.39, 6.92, 11.08, 4.46, 12.7], "type": "bar"}], "layout": {"template": {"data": {"histogram2dcontour": [{"type": "histogram2dcontour", "colorbar": {"outlinewidth": 0, "ticks": ""}, "colorscale": [[0.0, "#0d0887"], [0.1111111111111111, "#46039f"], [0.2222222222222222, "#7201a8"], [0.3333333333333333, "#9c179e"], [0.4444444444444444, "#bd3786"], [0.5555555555555556, "#d8576b"], [0.6666666666666666, "#ed7953"], [0.7777777777777778, "#fb9f3a"], [0.8888888888888888, "#fdca26"], [1.0, "#f0f921"]]}], "choropleth": [{"type": "choropleth", "colorbar": {"outlinewidth": 0, "ticks": ""}}], "histogram2d": [{"type": "histogram2d", "colorbar": {"outlinewidth": 0, "ticks": ""}, "colorscale": [[0.0, "#0d0887"], [0.1111111111111111, "#46039f"], [0.2222222222222222, "#7201a8"], [0.3333333333333333, "#9c179e"], [0.4444444444444444, "#bd3786"], [0.5555555555555556, "#d8576b"], [0.6666666666666666, "#ed7953"], [0.7777777777777778, "#fb9f3a"], [0.8888888888888888, "#fdca26"], [1.0, "#f0f921"]]}], "heatmap": [{"type": "heatmap", "colorbar": {"outlinewidth": 0, "ticks": ""}, "colorscale": [[0.0, "#0d0887"], [0.1111111111111111, "#46039f"], [0.2222222222222222, "#7201a8"], [0.3333333333333333, "#9c179e"], [0.4444444444444444, "#bd3786"], [0.5555555555555556, "#d8576b"], [0.6666666666666666, "#ed7953"], [0.7777777777777778, "#fb9f3a"], [0.8888888888888888, "#fdca26"], [1.0, "#f0f921"]]}], "heatmapgl": [{"type": "heatmapgl", "colorbar": {"outlinewidth": 0, "ticks": ""}, "colorscale": [[0.0, "#0d0887"], [0.1111111111111111, "#46039f"], [0.2222222222222222, "#7201a8"], [0.3333333333333333, "#9c179e"], [0.4444444444444444, "#bd3786"], [0.5555555555555556, "#d8576b"], [0.6666666666666666, "#ed7953"], [0.7777777777777778, "#fb9f3a"], [0.8888888888888888, "#fdca26"], [1.0, "#f0f921"]]}], "contourcarpet": [{"type": "contourcarpet", "colorbar": {"outlinewidth": 0, "ticks": ""}}], "contour": [{"type": "contour", "colorbar": {"outlinewidth": 0, "ticks": ""}, "colorscale": [[0.0, "#0d0887"], [0.1111111111111111, "#46039f"], [0.2222222222222222, "#7201a8"], [0.3333333333333333, "#9c179e"], [0.4444444444444444, "#bd3786"], [0.5555555555555556, "#d8576b"], [0.6666666666666666, "#ed7953"], [0.7777777777777778, "#fb9f3a"], [0.8888888888888888, "#fdca26"], [1.0, "#f0f921"]]}], "surface": [{"type": "surface", "colorbar": {"outlinewidth": 0, "ticks": ""}, "colorscale": [[0.0, "#0d0887"], [0.1111111111111111, "#46039f"], [0.2222222222222222, "#7201a8"], [0.3333333333333333, "#9c179e"], [0.4444444444444444, "#bd3786"], [0.5555555555555556, "#d8576b"], [0.6666666666666666, "#ed7953"], [0.7777777777777778, "#fb9f3a"], [0.8888888888888888, "#fdca26"], [1.0, "#f0f921"]]}], "mesh3d": [{"type": "mesh3d", "colorbar": {"outlinewidth": 0, "ticks": ""}}], "scatter": [{"fillpattern": {"fillmode": "overlay", "size": 10, "solidity": 0.2}, "type": "scatter"}], "parcoords": [{"type": "parcoords", "line": {"colorbar": {"outlinewidth": 0, "ticks": ""}}}], "scatterpolargl": [{"type": "scatterpolargl", "marker": {"colorbar": {"outlinewidth": 0, "ticks": ""}}}], "bar": [{"error_x": {"color": "#2a3f5f"}, "error_y": {"color": "#2a3f5f"}, "marker": {"line": {"color": "#E5ECF6", "width": 0.5}, "pattern": {"fillmode": "overlay", "size": 10, "solidity": 0.2}}, "type": "bar"}], "scattergeo": [{"type": "scattergeo", "marker": {"colorbar": {"outlinewidth": 0, "ticks": ""}}}], "scatterpolar": [{"type": "scatterpolar", "marker": {"colorbar": {"outlinewidth": 0, "ticks": ""}}}], "histogram": [{"marker": {"pattern": {"fillmode": "overlay", "size": 10, "solidity": 0.2}}, "type": "histogram"}], "scattergl": [{"type": "scattergl", "marker": {"colorbar": {"outlinewidth": 0, "ticks": ""}}}], "scatter3d": [{"type": "scatter3d", "line": {"colorbar": {"outlinewidth": 0, "ticks": ""}}, "marker": {"colorbar": {"outlinewidth": 0, "ticks": ""}}}], "scattermapbox": [{"type": "scattermapbox", "marker": {"colorbar": {"outlinewidth": 0, "ticks": ""}}}], "scatterternary": [{"type": "scatterternary", "marker": {"colorbar": {"outlinewidth": 0, "ticks": ""}}}], "scattercarpet": [{"type": "scattercarpet", "marker": {"colorbar": {"outlinewidth": 0, "ticks": ""}}}], "carpet": [{"aaxis": {"endlinecolor": "#2a3f5f", "gridcolor": "white", "linecolor": "white", "minorgridcolor": "white", "startlinecolor": "#2a3f5f"}, "baxis": {"endlinecolor": "#2a3f5f", "gridcolor": "white", "linecolor": "white", "minorgridcolor": "white", "startlinecolor": "#2a3f5f"}, "type": "carpet"}], "table": [{"cells": {"fill": {"color": "#EBF0F8"}, "line": {"color": "white"}}, "header": {"fill": {"color": "#C8D4E3"}, "line": {"color": "white"}}, "type": "table"}], "barpolar": [{"marker": {"line": {"color": "#E5ECF6", "width": 0.5}, "pattern": {"fillmode": "overlay", "size": 10, "solidity": 0.2}}, "type": "barpolar"}], "pie": [{"automargin": true, "type": "pie"}]}, "layout": {"autotypenumbers": "strict", "colorway": ["#636efa", "#EF553B", "#00cc96", "#ab63fa", "#FFA15A", "#19d3f3", "#FF6692", "#B6E880", "#FF97FF", "#FECB52"], "font": {"color": "#2a3f5f"}, "hovermode": "closest", "hoverlabel": {"align": "left"}, "paper_bgcolor": "white", "plot_bgcolor": "#E5ECF6", "polar": {"bgcolor": "#E5ECF6", "angularaxis": {"gridcolor": "white", "linecolor": "white", "ticks": ""}, "radialaxis": {"gridcolor": "white", "linecolor": "white", "ticks": ""}}, "ternary": {"bgcolor": "#E5ECF6", "aaxis": {"gridcolor": "white", "linecolor": "white", "ticks": ""}, "baxis": {"gridcolor": "white", "linecolor": "white", "ticks": ""}, "caxis": {"gridcolor": "white", "linecolor": "white", "ticks": ""}}, "coloraxis": {"colorbar": {"outlinewidth": 0, "ticks": ""}}, "colorscale": {"sequential": [[0.0, "#0d0887"], [0.1111111111111111, "#46039f"], [0.2222222222222222, "#7201a8"], [0.3333333333333333, "#9c179e"], [0.4444444444444444, "#bd3786"], [0.5555555555555556, "#d8576b"], [0.6666666666666666, "#ed7953"], [0.7777777777777778, "#fb9f3a"], [0.8888888888888888, "#fdca26"], [1.0, "#f0f921"]], "sequentialminus": [[0.0, "#0d0887"], [0.1111111111111111, "#46039f"], [0.2222222222222222, "#7201a8"], [0.3333333333333333, "#9c179e"], [0.4444444444444444, "#bd3786"], [0.5555555555555556, "#d8576b"], [0.6666666666666666, "#ed7953"], [0.7777777777777778, "#fb9f3a"], [0.8888888888888888, "#fdca26"], [1.0, "#f0f921"]], "diverging": [[0, "#8e0152"], [0.1, "#c51b7d"], [0.2, "#de77ae"], [0.3, "#f1b6da"], [0.4, "#fde0ef"], [0.5, "#f7f7f7"], [0.6, "#e6f5d0"], [0.7, "#b8e186"], [0.8, "#7fbc41"], [0.9, "#4d9221"], [1, "#276419"]]}, "xaxis": {"gridcolor": "white", "linecolor": "white", "ticks": "", "title": {"standoff": 15}, "zerolinecolor": "white", "automargin": true, "zerolinewidth": 2}, "yaxis": {"gridcolor": "white", "linecolor": "white", "ticks": "", "title": {"standoff": 15}, "zerolinecolor": "white", "automargin": true, "zerolinewidth": 2}, "scene": {"xaxis": {"backgroundcolor": "#E5ECF6", "gridcolor": "white", "linecolor": "white", "showbackground": true, "ticks": "", "zerolinecolor": "white", "gridwidth": 2}, "yaxis": {"backgroundcolor": "#E5ECF6", "gridcolor": "white", "linecolor": "white", "showbackground": true, "ticks": "", "zerolinecolor": "white", "gridwidth": 2}, "zaxis": {"backgroundcolor": "#E5ECF6", "gridcolor": "white", "linecolor": "white", "showbackground": true, "ticks": "", "zerolinecolor": "white", "gridwidth": 2}}, "shapedefaults": {"line": {"color": "#2a3f5f"}}, "annotationdefaults": {"arrowcolor": "#2a3f5f", "arrowhead": 0, "arrowwidth": 1}, "geo": {"bgcolor": "white", "landcolor": "#E5ECF6", "subunitcolor": "white", "showland": true, "showlakes": true, "lakecolor": "white"}, "title": {"x": 0.05}, "mapbox": {"style": "light"}}}, "font": {"color": "#e2e8f0"}, "title": {"text": "AHP Criteria Weights (%)", "font": {"size": 16}}, "margin": {"t": 60, "b": 40}, "yaxis": {"title": {"text": "Weight (%)"}, "gridcolor": "#1e293b"}, "xaxis": {"title": {"text": "Criteria"}}, "plot_bgcolor": "#0f172a", "paper_bgcolor": "#0f172a"}},
+    dist:       {"data": [{"marker": {"color": "#3b82f6"}, "name": "AHP Score", "nbinsx": 15, "opacity": 0.85, "x": [0.8535629347216844, 0.7885054094728713, 0.7696555359401043, 0.614420346837904, 0.7685028228037996, 0.7309832327186928, 0.7449517901827734, 0.7449517901827734, 0.5891652667169535, 0.5881743854858464, 0.6461419473121275, 0.5274121852786364, 0.5182050688827587, 0.39609838840214473, 0.3493281872879561], "type": "histogram", "xaxis": "x", "yaxis": "y"}, {"marker": {"color": "#10b981"}, "name": "Demand", "nbinsx": 15, "opacity": 0.85, "x": [0.6574, 0.513, 0.4507, 0.6213, 0.6374, 0.6393, 0.5822, 0.5822, 0.4823, 0.4443, 0.4488, 0.5109, 0.3161, 0.586, 0.4858], "type": "histogram", "xaxis": "x2", "yaxis": "y2"}], "layout": {"template": {"data": {"histogram2dcontour": [{"type": "histogram2dcontour", "colorbar": {"outlinewidth": 0, "ticks": ""}, "colorscale": [[0.0, "#0d0887"], [0.1111111111111111, "#46039f"], [0.2222222222222222, "#7201a8"], [0.3333333333333333, "#9c179e"], [0.4444444444444444, "#bd3786"], [0.5555555555555556, "#d8576b"], [0.6666666666666666, "#ed7953"], [0.7777777777777778, "#fb9f3a"], [0.8888888888888888, "#fdca26"], [1.0, "#f0f921"]]}], "choropleth": [{"type": "choropleth", "colorbar": {"outlinewidth": 0, "ticks": ""}}], "histogram2d": [{"type": "histogram2d", "colorbar": {"outlinewidth": 0, "ticks": ""}, "colorscale": [[0.0, "#0d0887"], [0.1111111111111111, "#46039f"], [0.2222222222222222, "#7201a8"], [0.3333333333333333, "#9c179e"], [0.4444444444444444, "#bd3786"], [0.5555555555555556, "#d8576b"], [0.6666666666666666, "#ed7953"], [0.7777777777777778, "#fb9f3a"], [0.8888888888888888, "#fdca26"], [1.0, "#f0f921"]]}], "heatmap": [{"type": "heatmap", "colorbar": {"outlinewidth": 0, "ticks": ""}, "colorscale": [[0.0, "#0d0887"], [0.1111111111111111, "#46039f"], [0.2222222222222222, "#7201a8"], [0.3333333333333333, "#9c179e"], [0.4444444444444444, "#bd3786"], [0.5555555555555556, "#d8576b"], [0.6666666666666666, "#ed7953"], [0.7777777777777778, "#fb9f3a"], [0.8888888888888888, "#fdca26"], [1.0, "#f0f921"]]}], "heatmapgl": [{"type": "heatmapgl", "colorbar": {"outlinewidth": 0, "ticks": ""}, "colorscale": [[0.0, "#0d0887"], [0.1111111111111111, "#46039f"], [0.2222222222222222, "#7201a8"], [0.3333333333333333, "#9c179e"], [0.4444444444444444, "#bd3786"], [0.5555555555555556, "#d8576b"], [0.6666666666666666, "#ed7953"], [0.7777777777777778, "#fb9f3a"], [0.8888888888888888, "#fdca26"], [1.0, "#f0f921"]]}], "contourcarpet": [{"type": "contourcarpet", "colorbar": {"outlinewidth": 0, "ticks": ""}}], "contour": [{"type": "contour", "colorbar": {"outlinewidth": 0, "ticks": ""}, "colorscale": [[0.0, "#0d0887"], [0.1111111111111111, "#46039f"], [0.2222222222222222, "#7201a8"], [0.3333333333333333, "#9c179e"], [0.4444444444444444, "#bd3786"], [0.5555555555555556, "#d8576b"], [0.6666666666666666, "#ed7953"], [0.7777777777777778, "#fb9f3a"], [0.8888888888888888, "#fdca26"], [1.0, "#f0f921"]]}], "surface": [{"type": "surface", "colorbar": {"outlinewidth": 0, "ticks": ""}, "colorscale": [[0.0, "#0d0887"], [0.1111111111111111, "#46039f"], [0.2222222222222222, "#7201a8"], [0.3333333333333333, "#9c179e"], [0.4444444444444444, "#bd3786"], [0.5555555555555556, "#d8576b"], [0.6666666666666666, "#ed7953"], [0.7777777777777778, "#fb9f3a"], [0.8888888888888888, "#fdca26"], [1.0, "#f0f921"]]}], "mesh3d": [{"type": "mesh3d", "colorbar": {"outlinewidth": 0, "ticks": ""}}], "scatter": [{"fillpattern": {"fillmode": "overlay", "size": 10, "solidity": 0.2}, "type": "scatter"}], "parcoords": [{"type": "parcoords", "line": {"colorbar": {"outlinewidth": 0, "ticks": ""}}}], "scatterpolargl": [{"type": "scatterpolargl", "marker": {"colorbar": {"outlinewidth": 0, "ticks": ""}}}], "bar": [{"error_x": {"color": "#2a3f5f"}, "error_y": {"color": "#2a3f5f"}, "marker": {"line": {"color": "#E5ECF6", "width": 0.5}, "pattern": {"fillmode": "overlay", "size": 10, "solidity": 0.2}}, "type": "bar"}], "scattergeo": [{"type": "scattergeo", "marker": {"colorbar": {"outlinewidth": 0, "ticks": ""}}}], "scatterpolar": [{"type": "scatterpolar", "marker": {"colorbar": {"outlinewidth": 0, "ticks": ""}}}], "histogram": [{"marker": {"pattern": {"fillmode": "overlay", "size": 10, "solidity": 0.2}}, "type": "histogram"}], "scattergl": [{"type": "scattergl", "marker": {"colorbar": {"outlinewidth": 0, "ticks": ""}}}], "scatter3d": [{"type": "scatter3d", "line": {"colorbar": {"outlinewidth": 0, "ticks": ""}}, "marker": {"colorbar": {"outlinewidth": 0, "ticks": ""}}}], "scattermapbox": [{"type": "scattermapbox", "marker": {"colorbar": {"outlinewidth": 0, "ticks": ""}}}], "scatterternary": [{"type": "scatterternary", "marker": {"colorbar": {"outlinewidth": 0, "ticks": ""}}}], "scattercarpet": [{"type": "scattercarpet", "marker": {"colorbar": {"outlinewidth": 0, "ticks": ""}}}], "carpet": [{"aaxis": {"endlinecolor": "#2a3f5f", "gridcolor": "white", "linecolor": "white", "minorgridcolor": "white", "startlinecolor": "#2a3f5f"}, "baxis": {"endlinecolor": "#2a3f5f", "gridcolor": "white", "linecolor": "white", "minorgridcolor": "white", "startlinecolor": "#2a3f5f"}, "type": "carpet"}], "table": [{"cells": {"fill": {"color": "#EBF0F8"}, "line": {"color": "white"}}, "header": {"fill": {"color": "#C8D4E3"}, "line": {"color": "white"}}, "type": "table"}], "barpolar": [{"marker": {"line": {"color": "#E5ECF6", "width": 0.5}, "pattern": {"fillmode": "overlay", "size": 10, "solidity": 0.2}}, "type": "barpolar"}], "pie": [{"automargin": true, "type": "pie"}]}, "layout": {"autotypenumbers": "strict", "colorway": ["#636efa", "#EF553B", "#00cc96", "#ab63fa", "#FFA15A", "#19d3f3", "#FF6692", "#B6E880", "#FF97FF", "#FECB52"], "font": {"color": "#2a3f5f"}, "hovermode": "closest", "hoverlabel": {"align": "left"}, "paper_bgcolor": "white", "plot_bgcolor": "#E5ECF6", "polar": {"bgcolor": "#E5ECF6", "angularaxis": {"gridcolor": "white", "linecolor": "white", "ticks": ""}, "radialaxis": {"gridcolor": "white", "linecolor": "white", "ticks": ""}}, "ternary": {"bgcolor": "#E5ECF6", "aaxis": {"gridcolor": "white", "linecolor": "white", "ticks": ""}, "baxis": {"gridcolor": "white", "linecolor": "white", "ticks": ""}, "caxis": {"gridcolor": "white", "linecolor": "white", "ticks": ""}}, "coloraxis": {"colorbar": {"outlinewidth": 0, "ticks": ""}}, "colorscale": {"sequential": [[0.0, "#0d0887"], [0.1111111111111111, "#46039f"], [0.2222222222222222, "#7201a8"], [0.3333333333333333, "#9c179e"], [0.4444444444444444, "#bd3786"], [0.5555555555555556, "#d8576b"], [0.6666666666666666, "#ed7953"], [0.7777777777777778, "#fb9f3a"], [0.8888888888888888, "#fdca26"], [1.0, "#f0f921"]], "sequentialminus": [[0.0, "#0d0887"], [0.1111111111111111, "#46039f"], [0.2222222222222222, "#7201a8"], [0.3333333333333333, "#9c179e"], [0.4444444444444444, "#bd3786"], [0.5555555555555556, "#d8576b"], [0.6666666666666666, "#ed7953"], [0.7777777777777778, "#fb9f3a"], [0.8888888888888888, "#fdca26"], [1.0, "#f0f921"]], "diverging": [[0, "#8e0152"], [0.1, "#c51b7d"], [0.2, "#de77ae"], [0.3, "#f1b6da"], [0.4, "#fde0ef"], [0.5, "#f7f7f7"], [0.6, "#e6f5d0"], [0.7, "#b8e186"], [0.8, "#7fbc41"], [0.9, "#4d9221"], [1, "#276419"]]}, "xaxis": {"gridcolor": "white", "linecolor": "white", "ticks": "", "title": {"standoff": 15}, "zerolinecolor": "white", "automargin": true, "zerolinewidth": 2}, "yaxis": {"gridcolor": "white", "linecolor": "white", "ticks": "", "title": {"standoff": 15}, "zerolinecolor": "white", "automargin": true, "zerolinewidth": 2}, "scene": {"xaxis": {"backgroundcolor": "#E5ECF6", "gridcolor": "white", "linecolor": "white", "showbackground": true, "ticks": "", "zerolinecolor": "white", "gridwidth": 2}, "yaxis": {"backgroundcolor": "#E5ECF6", "gridcolor": "white", "linecolor": "white", "showbackground": true, "ticks": "", "zerolinecolor": "white", "gridwidth": 2}, "zaxis": {"backgroundcolor": "#E5ECF6", "gridcolor": "white", "linecolor": "white", "showbackground": true, "ticks": "", "zerolinecolor": "white", "gridwidth": 2}}, "shapedefaults": {"line": {"color": "#2a3f5f"}}, "annotationdefaults": {"arrowcolor": "#2a3f5f", "arrowhead": 0, "arrowwidth": 1}, "geo": {"bgcolor": "white", "landcolor": "#E5ECF6", "subunitcolor": "white", "showland": true, "showlakes": true, "lakecolor": "white"}, "title": {"x": 0.05}, "mapbox": {"style": "light"}}}, "xaxis": {"anchor": "y", "domain": [0.0, 0.45], "gridcolor": "#1e293b"}, "yaxis": {"anchor": "x", "domain": [0.0, 1.0], "gridcolor": "#1e293b"}, "xaxis2": {"anchor": "y2", "domain": [0.55, 1.0], "gridcolor": "#1e293b"}, "yaxis2": {"anchor": "x2", "domain": [0.0, 1.0], "gridcolor": "#1e293b"}, "annotations": [{"font": {"size": 16}, "showarrow": false, "text": "AHP Score Distribution", "x": 0.225, "xanchor": "center", "xref": "paper", "y": 1.0, "yanchor": "bottom", "yref": "paper"}, {"font": {"size": 16}, "showarrow": false, "text": "Predicted Demand Distribution", "x": 0.775, "xanchor": "center", "xref": "paper", "y": 1.0, "yanchor": "bottom", "yref": "paper"}], "font": {"color": "#e2e8f0"}, "margin": {"t": 60, "b": 40}, "plot_bgcolor": "#0f172a", "paper_bgcolor": "#0f172a", "showlegend": false}},
+    scatter:    {"data": [{"customdata": [["Manyata Tech Park", 1, 0.6548856171441934, true], ["Vijayanagar", 2, 0.6218682719010514, true], ["Kalyan Nagar", 3, 0.5864056624321404, true], ["Cunningham Road", 4, 0.580561165879514, true], ["MG Road Metro Station", 5, 0.5754714114018997, true], ["Jayanagar 4th Block", 6, 0.5572816163593464, true], ["Brigade Road", 7, 0.5471358950913867, true], ["Residency Road", 7, 0.5471358950913867, true], ["Hennur Main Road", 9, 0.5286626787989449, true], ["Thanisandra Main Road", 10, 0.518509704277283, true]], "hovertemplate": "ahp_score=%{x}<br>predicted_demand=%{y}<br>final_score=%{customdata[2]:.3f}<br>label=%{text}<br>site_id=%{customdata[0]}<br>final_rank=%{customdata[1]}<extra></extra>", "legendgroup": "True", "marker": {"color": "#f59e0b", "size": [0.6548856171441934, 0.6218682719010514, 0.5864056624321404, 0.580561165879514, 0.5754714114018997, 0.5572816163593464, 0.5471358950913867, 0.5471358950913867, 0.5286626787989449, 0.518509704277283], "sizemode": "area", "sizeref": 0.002021251904766029, "symbol": "circle"}, "mode": "markers+text", "name": "True", "orientation": "v", "showlegend": true, "text": ["Manyata Tech Park", "Vijayanagar", "Kalyan Nagar", "Cunningham Road", "MG Road Metro Station", "Jayanagar 4th Block", "Brigade Road", "Residency Road", "Hennur Main Road", "Thanisandra Main Road"], "x": [0.8535629347216844, 0.7885054094728713, 0.7696555359401043, 0.614420346837904, 0.7685028228037996, 0.7309832327186928, 0.7449517901827734, 0.7449517901827734, 0.5891652667169535, 0.5881743854858464], "xaxis": "x", "y": [0.6574, 0.513, 0.4507, 0.6213, 0.6374, 0.6393, 0.5822, 0.5822, 0.4823, 0.4443], "yaxis": "y", "type": "scatter", "textfont": {"size": 10}, "textposition": "top center"}, {"customdata": [["Hebbal Flyover", 11, 0.5126737189401124, false], ["Frazer Town", 12, 0.41697609263931823, false], ["Kammanahalli Main Road", 13, 0.3925747499474164, false], ["Ulsoor Lake Area", 14, 0.3738491942010723, false], ["Nagawara", 15, 0.34151207965872066, false]], "hovertemplate": "ahp_score=%{x}<br>predicted_demand=%{y}<br>final_score=%{customdata[2]:.3f}<br>label=%{text}<br>site_id=%{customdata[0]}<br>final_rank=%{customdata[1]}<extra></extra>", "legendgroup": "False", "marker": {"color": "#64748b", "size": [0.5126737189401124, 0.41697609263931823, 0.3925747499474164, 0.3738491942010723, 0.34151207965872066], "sizemode": "area", "sizeref": 0.002021251904766029, "symbol": "circle"}, "mode": "markers+text", "name": "False", "orientation": "v", "showlegend": true, "text": ["", "", "", "", ""], "x": [0.6461419473121275, 0.5274121852786364, 0.5182050688827587, 0.39609838840214473, 0.3493281872879561], "xaxis": "x", "y": [0.4488, 0.5109, 0.3161, 0.586, 0.4858], "yaxis": "y", "type": "scatter", "textfont": {"size": 10}, "textposition": "top center"}], "layout": {"template": {"data": {"histogram2dcontour": [{"type": "histogram2dcontour", "colorbar": {"outlinewidth": 0, "ticks": ""}, "colorscale": [[0.0, "#0d0887"], [0.1111111111111111, "#46039f"], [0.2222222222222222, "#7201a8"], [0.3333333333333333, "#9c179e"], [0.4444444444444444, "#bd3786"], [0.5555555555555556, "#d8576b"], [0.6666666666666666, "#ed7953"], [0.7777777777777778, "#fb9f3a"], [0.8888888888888888, "#fdca26"], [1.0, "#f0f921"]]}], "choropleth": [{"type": "choropleth", "colorbar": {"outlinewidth": 0, "ticks": ""}}], "histogram2d": [{"type": "histogram2d", "colorbar": {"outlinewidth": 0, "ticks": ""}, "colorscale": [[0.0, "#0d0887"], [0.1111111111111111, "#46039f"], [0.2222222222222222, "#7201a8"], [0.3333333333333333, "#9c179e"], [0.4444444444444444, "#bd3786"], [0.5555555555555556, "#d8576b"], [0.6666666666666666, "#ed7953"], [0.7777777777777778, "#fb9f3a"], [0.8888888888888888, "#fdca26"], [1.0, "#f0f921"]]}], "heatmap": [{"type": "heatmap", "colorbar": {"outlinewidth": 0, "ticks": ""}, "colorscale": [[0.0, "#0d0887"], [0.1111111111111111, "#46039f"], [0.2222222222222222, "#7201a8"], [0.3333333333333333, "#9c179e"], [0.4444444444444444, "#bd3786"], [0.5555555555555556, "#d8576b"], [0.6666666666666666, "#ed7953"], [0.7777777777777778, "#fb9f3a"], [0.8888888888888888, "#fdca26"], [1.0, "#f0f921"]]}], "heatmapgl": [{"type": "heatmapgl", "colorbar": {"outlinewidth": 0, "ticks": ""}, "colorscale": [[0.0, "#0d0887"], [0.1111111111111111, "#46039f"], [0.2222222222222222, "#7201a8"], [0.3333333333333333, "#9c179e"], [0.4444444444444444, "#bd3786"], [0.5555555555555556, "#d8576b"], [0.6666666666666666, "#ed7953"], [0.7777777777777778, "#fb9f3a"], [0.8888888888888888, "#fdca26"], [1.0, "#f0f921"]]}], "contourcarpet": [{"type": "contourcarpet", "colorbar": {"outlinewidth": 0, "ticks": ""}}], "contour": [{"type": "contour", "colorbar": {"outlinewidth": 0, "ticks": ""}, "colorscale": [[0.0, "#0d0887"], [0.1111111111111111, "#46039f"], [0.2222222222222222, "#7201a8"], [0.3333333333333333, "#9c179e"], [0.4444444444444444, "#bd3786"], [0.5555555555555556, "#d8576b"], [0.6666666666666666, "#ed7953"], [0.7777777777777778, "#fb9f3a"], [0.8888888888888888, "#fdca26"], [1.0, "#f0f921"]]}], "surface": [{"type": "surface", "colorbar": {"outlinewidth": 0, "ticks": ""}, "colorscale": [[0.0, "#0d0887"], [0.1111111111111111, "#46039f"], [0.2222222222222222, "#7201a8"], [0.3333333333333333, "#9c179e"], [0.4444444444444444, "#bd3786"], [0.5555555555555556, "#d8576b"], [0.6666666666666666, "#ed7953"], [0.7777777777777778, "#fb9f3a"], [0.8888888888888888, "#fdca26"], [1.0, "#f0f921"]]}], "mesh3d": [{"type": "mesh3d", "colorbar": {"outlinewidth": 0, "ticks": ""}}], "scatter": [{"fillpattern": {"fillmode": "overlay", "size": 10, "solidity": 0.2}, "type": "scatter"}], "parcoords": [{"type": "parcoords", "line": {"colorbar": {"outlinewidth": 0, "ticks": ""}}}], "scatterpolargl": [{"type": "scatterpolargl", "marker": {"colorbar": {"outlinewidth": 0, "ticks": ""}}}], "bar": [{"error_x": {"color": "#2a3f5f"}, "error_y": {"color": "#2a3f5f"}, "marker": {"line": {"color": "#E5ECF6", "width": 0.5}, "pattern": {"fillmode": "overlay", "size": 10, "solidity": 0.2}}, "type": "bar"}], "scattergeo": [{"type": "scattergeo", "marker": {"colorbar": {"outlinewidth": 0, "ticks": ""}}}], "scatterpolar": [{"type": "scatterpolar", "marker": {"colorbar": {"outlinewidth": 0, "ticks": ""}}}], "histogram": [{"marker": {"pattern": {"fillmode": "overlay", "size": 10, "solidity": 0.2}}, "type": "histogram"}], "scattergl": [{"type": "scattergl", "marker": {"colorbar": {"outlinewidth": 0, "ticks": ""}}}], "scatter3d": [{"type": "scatter3d", "line": {"colorbar": {"outlinewidth": 0, "ticks": ""}}, "marker": {"colorbar": {"outlinewidth": 0, "ticks": ""}}}], "scattermapbox": [{"type": "scattermapbox", "marker": {"colorbar": {"outlinewidth": 0, "ticks": ""}}}], "scatterternary": [{"type": "scatterternary", "marker": {"colorbar": {"outlinewidth": 0, "ticks": ""}}}], "scattercarpet": [{"type": "scattercarpet", "marker": {"colorbar": {"outlinewidth": 0, "ticks": ""}}}], "carpet": [{"aaxis": {"endlinecolor": "#2a3f5f", "gridcolor": "white", "linecolor": "white", "minorgridcolor": "white", "startlinecolor": "#2a3f5f"}, "baxis": {"endlinecolor": "#2a3f5f", "gridcolor": "white", "linecolor": "white", "minorgridcolor": "white", "startlinecolor": "#2a3f5f"}, "type": "carpet"}], "table": [{"cells": {"fill": {"color": "#EBF0F8"}, "line": {"color": "white"}}, "header": {"fill": {"color": "#C8D4E3"}, "line": {"color": "white"}}, "type": "table"}], "barpolar": [{"marker": {"line": {"color": "#E5ECF6", "width": 0.5}, "pattern": {"fillmode": "overlay", "size": 10, "solidity": 0.2}}, "type": "barpolar"}], "pie": [{"automargin": true, "type": "pie"}]}, "layout": {"autotypenumbers": "strict", "colorway": ["#636efa", "#EF553B", "#00cc96", "#ab63fa", "#FFA15A", "#19d3f3", "#FF6692", "#B6E880", "#FF97FF", "#FECB52"], "font": {"color": "#2a3f5f"}, "hovermode": "closest", "hoverlabel": {"align": "left"}, "paper_bgcolor": "white", "plot_bgcolor": "#E5ECF6", "polar": {"bgcolor": "#E5ECF6", "angularaxis": {"gridcolor": "white", "linecolor": "white", "ticks": ""}, "radialaxis": {"gridcolor": "white", "linecolor": "white", "ticks": ""}}, "ternary": {"bgcolor": "#E5ECF6", "aaxis": {"gridcolor": "white", "linecolor": "white", "ticks": ""}, "baxis": {"gridcolor": "white", "linecolor": "white", "ticks": ""}, "caxis": {"gridcolor": "white", "linecolor": "white", "ticks": ""}}, "coloraxis": {"colorbar": {"outlinewidth": 0, "ticks": ""}}, "colorscale": {"sequential": [[0.0, "#0d0887"], [0.1111111111111111, "#46039f"], [0.2222222222222222, "#7201a8"], [0.3333333333333333, "#9c179e"], [0.4444444444444444, "#bd3786"], [0.5555555555555556, "#d8576b"], [0.6666666666666666, "#ed7953"], [0.7777777777777778, "#fb9f3a"], [0.8888888888888888, "#fdca26"], [1.0, "#f0f921"]], "sequentialminus": [[0.0, "#0d0887"], [0.1111111111111111, "#46039f"], [0.2222222222222222, "#7201a8"], [0.3333333333333333, "#9c179e"], [0.4444444444444444, "#bd3786"], [0.5555555555555556, "#d8576b"], [0.6666666666666666, "#ed7953"], [0.7777777777777778, "#fb9f3a"], [0.8888888888888888, "#fdca26"], [1.0, "#f0f921"]], "diverging": [[0, "#8e0152"], [0.1, "#c51b7d"], [0.2, "#de77ae"], [0.3, "#f1b6da"], [0.4, "#fde0ef"], [0.5, "#f7f7f7"], [0.6, "#e6f5d0"], [0.7, "#b8e186"], [0.8, "#7fbc41"], [0.9, "#4d9221"], [1, "#276419"]]}, "xaxis": {"gridcolor": "white", "linecolor": "white", "ticks": "", "title": {"standoff": 15}, "zerolinecolor": "white", "automargin": true, "zerolinewidth": 2}, "yaxis": {"gridcolor": "white", "linecolor": "white", "ticks": "", "title": {"standoff": 15}, "zerolinecolor": "white", "automargin": true, "zerolinewidth": 2}, "scene": {"xaxis": {"backgroundcolor": "#E5ECF6", "gridcolor": "white", "linecolor": "white", "showbackground": true, "ticks": "", "zerolinecolor": "white", "gridwidth": 2}, "yaxis": {"backgroundcolor": "#E5ECF6", "gridcolor": "white", "linecolor": "white", "showbackground": true, "ticks": "", "zerolinecolor": "white", "gridwidth": 2}, "zaxis": {"backgroundcolor": "#E5ECF6", "gridcolor": "white", "linecolor": "white", "showbackground": true, "ticks": "", "zerolinecolor": "white", "gridwidth": 2}}, "shapedefaults": {"line": {"color": "#2a3f5f"}}, "annotationdefaults": {"arrowcolor": "#2a3f5f", "arrowhead": 0, "arrowwidth": 1}, "geo": {"bgcolor": "white", "landcolor": "#E5ECF6", "subunitcolor": "white", "showland": true, "showlakes": true, "lakecolor": "white"}, "title": {"x": 0.05}, "mapbox": {"style": "light"}}}, "xaxis": {"anchor": "y", "domain": [0.0, 1.0], "title": {"text": "AHP Score"}, "gridcolor": "#1e293b"}, "yaxis": {"anchor": "x", "domain": [0.0, 1.0], "title": {"text": "Predicted Demand"}, "gridcolor": "#1e293b"}, "legend": {"title": {"text": "Top 10"}, "tracegroupgap": 0, "itemsizing": "constant"}, "title": {"text": "AHP Score vs Predicted Demand"}, "font": {"color": "#e2e8f0"}, "margin": {"t": 60, "b": 40}, "plot_bgcolor": "#0f172a", "paper_bgcolor": "#0f172a"}},
+    importance: {"data": [{"marker": {"color": "#6366f1"}, "orientation": "h", "text": ["0.028", "0.040", "0.093", "0.096", "0.121", "0.244", "0.377"], "textposition": "outside", "x": [0.028492993116039766, 0.040289640431105354, 0.09316556215475406, 0.09589255589851929, 0.12086303386302978, 0.2442534333030611, 0.3770427812334908], "y": ["Env. Sensitivity", "Roads", "Land Cost", "Commercial", "Grid", "Population", "Traffic"], "type": "bar"}], "layout": {"template": {"data": {"histogram2dcontour": [{"type": "histogram2dcontour", "colorbar": {"outlinewidth": 0, "ticks": ""}, "colorscale": [[0.0, "#0d0887"], [0.1111111111111111, "#46039f"], [0.2222222222222222, "#7201a8"], [0.3333333333333333, "#9c179e"], [0.4444444444444444, "#bd3786"], [0.5555555555555556, "#d8576b"], [0.6666666666666666, "#ed7953"], [0.7777777777777778, "#fb9f3a"], [0.8888888888888888, "#fdca26"], [1.0, "#f0f921"]]}], "choropleth": [{"type": "choropleth", "colorbar": {"outlinewidth": 0, "ticks": ""}}], "histogram2d": [{"type": "histogram2d", "colorbar": {"outlinewidth": 0, "ticks": ""}, "colorscale": [[0.0, "#0d0887"], [0.1111111111111111, "#46039f"], [0.2222222222222222, "#7201a8"], [0.3333333333333333, "#9c179e"], [0.4444444444444444, "#bd3786"], [0.5555555555555556, "#d8576b"], [0.6666666666666666, "#ed7953"], [0.7777777777777778, "#fb9f3a"], [0.8888888888888888, "#fdca26"], [1.0, "#f0f921"]]}], "heatmap": [{"type": "heatmap", "colorbar": {"outlinewidth": 0, "ticks": ""}, "colorscale": [[0.0, "#0d0887"], [0.1111111111111111, "#46039f"], [0.2222222222222222, "#7201a8"], [0.3333333333333333, "#9c179e"], [0.4444444444444444, "#bd3786"], [0.5555555555555556, "#d8576b"], [0.6666666666666666, "#ed7953"], [0.7777777777777778, "#fb9f3a"], [0.8888888888888888, "#fdca26"], [1.0, "#f0f921"]]}], "heatmapgl": [{"type": "heatmapgl", "colorbar": {"outlinewidth": 0, "ticks": ""}, "colorscale": [[0.0, "#0d0887"], [0.1111111111111111, "#46039f"], [0.2222222222222222, "#7201a8"], [0.3333333333333333, "#9c179e"], [0.4444444444444444, "#bd3786"], [0.5555555555555556, "#d8576b"], [0.6666666666666666, "#ed7953"], [0.7777777777777778, "#fb9f3a"], [0.8888888888888888, "#fdca26"], [1.0, "#f0f921"]]}], "contourcarpet": [{"type": "contourcarpet", "colorbar": {"outlinewidth": 0, "ticks": ""}}], "contour": [{"type": "contour", "colorbar": {"outlinewidth": 0, "ticks": ""}, "colorscale": [[0.0, "#0d0887"], [0.1111111111111111, "#46039f"], [0.2222222222222222, "#7201a8"], [0.3333333333333333, "#9c179e"], [0.4444444444444444, "#bd3786"], [0.5555555555555556, "#d8576b"], [0.6666666666666666, "#ed7953"], [0.7777777777777778, "#fb9f3a"], [0.8888888888888888, "#fdca26"], [1.0, "#f0f921"]]}], "surface": [{"type": "surface", "colorbar": {"outlinewidth": 0, "ticks": ""}, "colorscale": [[0.0, "#0d0887"], [0.1111111111111111, "#46039f"], [0.2222222222222222, "#7201a8"], [0.3333333333333333, "#9c179e"], [0.4444444444444444, "#bd3786"], [0.5555555555555556, "#d8576b"], [0.6666666666666666, "#ed7953"], [0.7777777777777778, "#fb9f3a"], [0.8888888888888888, "#fdca26"], [1.0, "#f0f921"]]}], "mesh3d": [{"type": "mesh3d", "colorbar": {"outlinewidth": 0, "ticks": ""}}], "scatter": [{"fillpattern": {"fillmode": "overlay", "size": 10, "solidity": 0.2}, "type": "scatter"}], "parcoords": [{"type": "parcoords", "line": {"colorbar": {"outlinewidth": 0, "ticks": ""}}}], "scatterpolargl": [{"type": "scatterpolargl", "marker": {"colorbar": {"outlinewidth": 0, "ticks": ""}}}], "bar": [{"error_x": {"color": "#2a3f5f"}, "error_y": {"color": "#2a3f5f"}, "marker": {"line": {"color": "#E5ECF6", "width": 0.5}, "pattern": {"fillmode": "overlay", "size": 10, "solidity": 0.2}}, "type": "bar"}], "scattergeo": [{"type": "scattergeo", "marker": {"colorbar": {"outlinewidth": 0, "ticks": ""}}}], "scatterpolar": [{"type": "scatterpolar", "marker": {"colorbar": {"outlinewidth": 0, "ticks": ""}}}], "histogram": [{"marker": {"pattern": {"fillmode": "overlay", "size": 10, "solidity": 0.2}}, "type": "histogram"}], "scattergl": [{"type": "scattergl", "marker": {"colorbar": {"outlinewidth": 0, "ticks": ""}}}], "scatter3d": [{"type": "scatter3d", "line": {"colorbar": {"outlinewidth": 0, "ticks": ""}}, "marker": {"colorbar": {"outlinewidth": 0, "ticks": ""}}}], "scattermapbox": [{"type": "scattermapbox", "marker": {"colorbar": {"outlinewidth": 0, "ticks": ""}}}], "scatterternary": [{"type": "scatterternary", "marker": {"colorbar": {"outlinewidth": 0, "ticks": ""}}}], "scattercarpet": [{"type": "scattercarpet", "marker": {"colorbar": {"outlinewidth": 0, "ticks": ""}}}], "carpet": [{"aaxis": {"endlinecolor": "#2a3f5f", "gridcolor": "white", "linecolor": "white", "minorgridcolor": "white", "startlinecolor": "#2a3f5f"}, "baxis": {"endlinecolor": "#2a3f5f", "gridcolor": "white", "linecolor": "white", "minorgridcolor": "white", "startlinecolor": "#2a3f5f"}, "type": "carpet"}], "table": [{"cells": {"fill": {"color": "#EBF0F8"}, "line": {"color": "white"}}, "header": {"fill": {"color": "#C8D4E3"}, "line": {"color": "white"}}, "type": "table"}], "barpolar": [{"marker": {"line": {"color": "#E5ECF6", "width": 0.5}, "pattern": {"fillmode": "overlay", "size": 10, "solidity": 0.2}}, "type": "barpolar"}], "pie": [{"automargin": true, "type": "pie"}]}, "layout": {"autotypenumbers": "strict", "colorway": ["#636efa", "#EF553B", "#00cc96", "#ab63fa", "#FFA15A", "#19d3f3", "#FF6692", "#B6E880", "#FF97FF", "#FECB52"], "font": {"color": "#2a3f5f"}, "hovermode": "closest", "hoverlabel": {"align": "left"}, "paper_bgcolor": "white", "plot_bgcolor": "#E5ECF6", "polar": {"bgcolor": "#E5ECF6", "angularaxis": {"gridcolor": "white", "linecolor": "white", "ticks": ""}, "radialaxis": {"gridcolor": "white", "linecolor": "white", "ticks": ""}}, "ternary": {"bgcolor": "#E5ECF6", "aaxis": {"gridcolor": "white", "linecolor": "white", "ticks": ""}, "baxis": {"gridcolor": "white", "linecolor": "white", "ticks": ""}, "caxis": {"gridcolor": "white", "linecolor": "white", "ticks": ""}}, "coloraxis": {"colorbar": {"outlinewidth": 0, "ticks": ""}}, "colorscale": {"sequential": [[0.0, "#0d0887"], [0.1111111111111111, "#46039f"], [0.2222222222222222, "#7201a8"], [0.3333333333333333, "#9c179e"], [0.4444444444444444, "#bd3786"], [0.5555555555555556, "#d8576b"], [0.6666666666666666, "#ed7953"], [0.7777777777777778, "#fb9f3a"], [0.8888888888888888, "#fdca26"], [1.0, "#f0f921"]], "sequentialminus": [[0.0, "#0d0887"], [0.1111111111111111, "#46039f"], [0.2222222222222222, "#7201a8"], [0.3333333333333333, "#9c179e"], [0.4444444444444444, "#bd3786"], [0.5555555555555556, "#d8576b"], [0.6666666666666666, "#ed7953"], [0.7777777777777778, "#fb9f3a"], [0.8888888888888888, "#fdca26"], [1.0, "#f0f921"]], "diverging": [[0, "#8e0152"], [0.1, "#c51b7d"], [0.2, "#de77ae"], [0.3, "#f1b6da"], [0.4, "#fde0ef"], [0.5, "#f7f7f7"], [0.6, "#e6f5d0"], [0.7, "#b8e186"], [0.8, "#7fbc41"], [0.9, "#4d9221"], [1, "#276419"]]}, "xaxis": {"gridcolor": "white", "linecolor": "white", "ticks": "", "title": {"standoff": 15}, "zerolinecolor": "white", "automargin": true, "zerolinewidth": 2}, "yaxis": {"gridcolor": "white", "linecolor": "white", "ticks": "", "title": {"standoff": 15}, "zerolinecolor": "white", "automargin": true, "zerolinewidth": 2}, "scene": {"xaxis": {"backgroundcolor": "#E5ECF6", "gridcolor": "white", "linecolor": "white", "showbackground": true, "ticks": "", "zerolinecolor": "white", "gridwidth": 2}, "yaxis": {"backgroundcolor": "#E5ECF6", "gridcolor": "white", "linecolor": "white", "showbackground": true, "ticks": "", "zerolinecolor": "white", "gridwidth": 2}, "zaxis": {"backgroundcolor": "#E5ECF6", "gridcolor": "white", "linecolor": "white", "showbackground": true, "ticks": "", "zerolinecolor": "white", "gridwidth": 2}}, "shapedefaults": {"line": {"color": "#2a3f5f"}}, "annotationdefaults": {"arrowcolor": "#2a3f5f", "arrowhead": 0, "arrowwidth": 1}, "geo": {"bgcolor": "white", "landcolor": "#E5ECF6", "subunitcolor": "white", "showland": true, "showlakes": true, "lakecolor": "white"}, "title": {"x": 0.05}, "mapbox": {"style": "light"}}}, "font": {"color": "#e2e8f0"}, "xaxis": {"title": {"text": "Importance"}, "gridcolor": "#1e293b"}, "margin": {"t": 60, "b": 40, "l": 140}, "title": {"text": "Random Forest Feature Importance"}, "plot_bgcolor": "#0f172a", "paper_bgcolor": "#0f172a"}},
+    topSites:   {"data": [{"marker": {"color": "#3b82f6"}, "name": "AHP Score", "opacity": 0.9, "orientation": "h", "x": [0.5881743854858464, 0.5891652667169535, 0.7449517901827734, 0.7449517901827734, 0.7309832327186928, 0.7685028228037996, 0.614420346837904, 0.7696555359401043, 0.7885054094728713, 0.8535629347216844], "y": ["Thanisandra Main Road", "Hennur Main Road", "Brigade Road", "Residency Road", "Jayanagar 4th Block", "MG Road Metro Station", "Cunningham Road", "Kalyan Nagar", "Vijayanagar", "Manyata Tech Park"], "type": "bar"}, {"marker": {"color": "#10b981"}, "name": "Predicted Demand", "opacity": 0.9, "orientation": "h", "x": [0.4443, 0.4823, 0.5822, 0.5822, 0.6393, 0.6374, 0.6213, 0.4507, 0.513, 0.6574], "y": ["Thanisandra Main Road", "Hennur Main Road", "Brigade Road", "Residency Road", "Jayanagar 4th Block", "MG Road Metro Station", "Cunningham Road", "Kalyan Nagar", "Vijayanagar", "Manyata Tech Park"], "type": "bar"}, {"marker": {"color": "#f59e0b"}, "name": "Final Score", "opacity": 0.9, "orientation": "h", "x": [0.518509704277283, 0.5286626787989449, 0.5471358950913867, 0.5471358950913867, 0.5572816163593464, 0.5754714114018997, 0.580561165879514, 0.5864056624321404, 0.6218682719010514, 0.6548856171441934], "y": ["Thanisandra Main Road", "Hennur Main Road", "Brigade Road", "Residency Road", "Jayanagar 4th Block", "MG Road Metro Station", "Cunningham Road", "Kalyan Nagar", "Vijayanagar", "Manyata Tech Park"], "type": "bar"}], "layout": {"template": {"data": {"histogram2dcontour": [{"type": "histogram2dcontour", "colorbar": {"outlinewidth": 0, "ticks": ""}, "colorscale": [[0.0, "#0d0887"], [0.1111111111111111, "#46039f"], [0.2222222222222222, "#7201a8"], [0.3333333333333333, "#9c179e"], [0.4444444444444444, "#bd3786"], [0.5555555555555556, "#d8576b"], [0.6666666666666666, "#ed7953"], [0.7777777777777778, "#fb9f3a"], [0.8888888888888888, "#fdca26"], [1.0, "#f0f921"]]}], "choropleth": [{"type": "choropleth", "colorbar": {"outlinewidth": 0, "ticks": ""}}], "histogram2d": [{"type": "histogram2d", "colorbar": {"outlinewidth": 0, "ticks": ""}, "colorscale": [[0.0, "#0d0887"], [0.1111111111111111, "#46039f"], [0.2222222222222222, "#7201a8"], [0.3333333333333333, "#9c179e"], [0.4444444444444444, "#bd3786"], [0.5555555555555556, "#d8576b"], [0.6666666666666666, "#ed7953"], [0.7777777777777778, "#fb9f3a"], [0.8888888888888888, "#fdca26"], [1.0, "#f0f921"]]}], "heatmap": [{"type": "heatmap", "colorbar": {"outlinewidth": 0, "ticks": ""}, "colorscale": [[0.0, "#0d0887"], [0.1111111111111111, "#46039f"], [0.2222222222222222, "#7201a8"], [0.3333333333333333, "#9c179e"], [0.4444444444444444, "#bd3786"], [0.5555555555555556, "#d8576b"], [0.6666666666666666, "#ed7953"], [0.7777777777777778, "#fb9f3a"], [0.8888888888888888, "#fdca26"], [1.0, "#f0f921"]]}], "heatmapgl": [{"type": "heatmapgl", "colorbar": {"outlinewidth": 0, "ticks": ""}, "colorscale": [[0.0, "#0d0887"], [0.1111111111111111, "#46039f"], [0.2222222222222222, "#7201a8"], [0.3333333333333333, "#9c179e"], [0.4444444444444444, "#bd3786"], [0.5555555555555556, "#d8576b"], [0.6666666666666666, "#ed7953"], [0.7777777777777778, "#fb9f3a"], [0.8888888888888888, "#fdca26"], [1.0, "#f0f921"]]}], "contourcarpet": [{"type": "contourcarpet", "colorbar": {"outlinewidth": 0, "ticks": ""}}], "contour": [{"type": "contour", "colorbar": {"outlinewidth": 0, "ticks": ""}, "colorscale": [[0.0, "#0d0887"], [0.1111111111111111, "#46039f"], [0.2222222222222222, "#7201a8"], [0.3333333333333333, "#9c179e"], [0.4444444444444444, "#bd3786"], [0.5555555555555556, "#d8576b"], [0.6666666666666666, "#ed7953"], [0.7777777777777778, "#fb9f3a"], [0.8888888888888888, "#fdca26"], [1.0, "#f0f921"]]}], "surface": [{"type": "surface", "colorbar": {"outlinewidth": 0, "ticks": ""}, "colorscale": [[0.0, "#0d0887"], [0.1111111111111111, "#46039f"], [0.2222222222222222, "#7201a8"], [0.3333333333333333, "#9c179e"], [0.4444444444444444, "#bd3786"], [0.5555555555555556, "#d8576b"], [0.6666666666666666, "#ed7953"], [0.7777777777777778, "#fb9f3a"], [0.8888888888888888, "#fdca26"], [1.0, "#f0f921"]]}], "mesh3d": [{"type": "mesh3d", "colorbar": {"outlinewidth": 0, "ticks": ""}}], "scatter": [{"fillpattern": {"fillmode": "overlay", "size": 10, "solidity": 0.2}, "type": "scatter"}], "parcoords": [{"type": "parcoords", "line": {"colorbar": {"outlinewidth": 0, "ticks": ""}}}], "scatterpolargl": [{"type": "scatterpolargl", "marker": {"colorbar": {"outlinewidth": 0, "ticks": ""}}}], "bar": [{"error_x": {"color": "#2a3f5f"}, "error_y": {"color": "#2a3f5f"}, "marker": {"line": {"color": "#E5ECF6", "width": 0.5}, "pattern": {"fillmode": "overlay", "size": 10, "solidity": 0.2}}, "type": "bar"}], "scattergeo": [{"type": "scattergeo", "marker": {"colorbar": {"outlinewidth": 0, "ticks": ""}}}], "scatterpolar": [{"type": "scatterpolar", "marker": {"colorbar": {"outlinewidth": 0, "ticks": ""}}}], "histogram": [{"marker": {"pattern": {"fillmode": "overlay", "size": 10, "solidity": 0.2}}, "type": "histogram"}], "scattergl": [{"type": "scattergl", "marker": {"colorbar": {"outlinewidth": 0, "ticks": ""}}}], "scatter3d": [{"type": "scatter3d", "line": {"colorbar": {"outlinewidth": 0, "ticks": ""}}, "marker": {"colorbar": {"outlinewidth": 0, "ticks": ""}}}], "scattermapbox": [{"type": "scattermapbox", "marker": {"colorbar": {"outlinewidth": 0, "ticks": ""}}}], "scatterternary": [{"type": "scatterternary", "marker": {"colorbar": {"outlinewidth": 0, "ticks": ""}}}], "scattercarpet": [{"type": "scattercarpet", "marker": {"colorbar": {"outlinewidth": 0, "ticks": ""}}}], "carpet": [{"aaxis": {"endlinecolor": "#2a3f5f", "gridcolor": "white", "linecolor": "white", "minorgridcolor": "white", "startlinecolor": "#2a3f5f"}, "baxis": {"endlinecolor": "#2a3f5f", "gridcolor": "white", "linecolor": "white", "minorgridcolor": "white", "startlinecolor": "#2a3f5f"}, "type": "carpet"}], "table": [{"cells": {"fill": {"color": "#EBF0F8"}, "line": {"color": "white"}}, "header": {"fill": {"color": "#C8D4E3"}, "line": {"color": "white"}}, "type": "table"}], "barpolar": [{"marker": {"line": {"color": "#E5ECF6", "width": 0.5}, "pattern": {"fillmode": "overlay", "size": 10, "solidity": 0.2}}, "type": "barpolar"}], "pie": [{"automargin": true, "type": "pie"}]}, "layout": {"autotypenumbers": "strict", "colorway": ["#636efa", "#EF553B", "#00cc96", "#ab63fa", "#FFA15A", "#19d3f3", "#FF6692", "#B6E880", "#FF97FF", "#FECB52"], "font": {"color": "#2a3f5f"}, "hovermode": "closest", "hoverlabel": {"align": "left"}, "paper_bgcolor": "white", "plot_bgcolor": "#E5ECF6", "polar": {"bgcolor": "#E5ECF6", "angularaxis": {"gridcolor": "white", "linecolor": "white", "ticks": ""}, "radialaxis": {"gridcolor": "white", "linecolor": "white", "ticks": ""}}, "ternary": {"bgcolor": "#E5ECF6", "aaxis": {"gridcolor": "white", "linecolor": "white", "ticks": ""}, "baxis": {"gridcolor": "white", "linecolor": "white", "ticks": ""}, "caxis": {"gridcolor": "white", "linecolor": "white", "ticks": ""}}, "coloraxis": {"colorbar": {"outlinewidth": 0, "ticks": ""}}, "colorscale": {"sequential": [[0.0, "#0d0887"], [0.1111111111111111, "#46039f"], [0.2222222222222222, "#7201a8"], [0.3333333333333333, "#9c179e"], [0.4444444444444444, "#bd3786"], [0.5555555555555556, "#d8576b"], [0.6666666666666666, "#ed7953"], [0.7777777777777778, "#fb9f3a"], [0.8888888888888888, "#fdca26"], [1.0, "#f0f921"]], "sequentialminus": [[0.0, "#0d0887"], [0.1111111111111111, "#46039f"], [0.2222222222222222, "#7201a8"], [0.3333333333333333, "#9c179e"], [0.4444444444444444, "#bd3786"], [0.5555555555555556, "#d8576b"], [0.6666666666666666, "#ed7953"], [0.7777777777777778, "#fb9f3a"], [0.8888888888888888, "#fdca26"], [1.0, "#f0f921"]], "diverging": [[0, "#8e0152"], [0.1, "#c51b7d"], [0.2, "#de77ae"], [0.3, "#f1b6da"], [0.4, "#fde0ef"], [0.5, "#f7f7f7"], [0.6, "#e6f5d0"], [0.7, "#b8e186"], [0.8, "#7fbc41"], [0.9, "#4d9221"], [1, "#276419"]]}, "xaxis": {"gridcolor": "white", "linecolor": "white", "ticks": "", "title": {"standoff": 15}, "zerolinecolor": "white", "automargin": true, "zerolinewidth": 2}, "yaxis": {"gridcolor": "white", "linecolor": "white", "ticks": "", "title": {"standoff": 15}, "zerolinecolor": "white", "automargin": true, "zerolinewidth": 2}, "scene": {"xaxis": {"backgroundcolor": "#E5ECF6", "gridcolor": "white", "linecolor": "white", "showbackground": true, "ticks": "", "zerolinecolor": "white", "gridwidth": 2}, "yaxis": {"backgroundcolor": "#E5ECF6", "gridcolor": "white", "linecolor": "white", "showbackground": true, "ticks": "", "zerolinecolor": "white", "gridwidth": 2}, "zaxis": {"backgroundcolor": "#E5ECF6", "gridcolor": "white", "linecolor": "white", "showbackground": true, "ticks": "", "zerolinecolor": "white", "gridwidth": 2}}, "shapedefaults": {"line": {"color": "#2a3f5f"}}, "annotationdefaults": {"arrowcolor": "#2a3f5f", "arrowhead": 0, "arrowwidth": 1}, "geo": {"bgcolor": "white", "landcolor": "#E5ECF6", "subunitcolor": "white", "showland": true, "showlakes": true, "lakecolor": "white"}, "title": {"x": 0.05}, "mapbox": {"style": "light"}}}, "font": {"color": "#e2e8f0"}, "legend": {"bgcolor": "#1e293b"}, "xaxis": {"title": {"text": "Score"}, "gridcolor": "#1e293b"}, "margin": {"t": 60, "b": 40, "l": 80}, "barmode": "group", "title": {"text": "Top 10 Sites \u2014 Score Breakdown"}, "plot_bgcolor": "#0f172a", "paper_bgcolor": "#0f172a"}},
+    radar:      {"data": [{"fill": "toself", "line": {"color": "#f59e0b"}, "name": "Manyata Tech Park", "opacity": 0.75, "r": [0.38730021233216777, 3.162366983729991e-05, 1.0, 0.0, 0.38730021233216777, 3.162366983729991e-05, 3.169136832764649e-05, 0.38730021233216777], "theta": ["Roads", "Grid", "Population", "Land Cost", "Traffic", "Env. Sensitivity", "Commercial", "Roads"], "type": "scatterpolar"}, {"fill": "toself", "line": {"color": "#3b82f6"}, "name": "Vijayanagar", "opacity": 0.75, "r": [0.3181508250375017, 4.5456611664166555e-05, 1.0, 0.0, 0.3181508250375017, 4.5456611664166555e-05, 3.558685285015454e-05, 0.3181508250375017], "theta": ["Roads", "Grid", "Population", "Land Cost", "Traffic", "Env. Sensitivity", "Commercial", "Roads"], "type": "scatterpolar"}, {"fill": "toself", "line": {"color": "#10b981"}, "name": "Kalyan Nagar", "opacity": 0.75, "r": [0.3332977758813803, 5.2186675037926664e-05, 1.0, 0.0, 0.3332977758813803, 5.2186675037926664e-05, 5.2079751589943264e-05, 0.3332977758813803], "theta": ["Roads", "Grid", "Population", "Land Cost", "Traffic", "Env. Sensitivity", "Commercial", "Roads"], "type": "scatterpolar"}], "layout": {"template": {"data": {"histogram2dcontour": [{"type": "histogram2dcontour", "colorbar": {"outlinewidth": 0, "ticks": ""}, "colorscale": [[0.0, "#0d0887"], [0.1111111111111111, "#46039f"], [0.2222222222222222, "#7201a8"], [0.3333333333333333, "#9c179e"], [0.4444444444444444, "#bd3786"], [0.5555555555555556, "#d8576b"], [0.6666666666666666, "#ed7953"], [0.7777777777777778, "#fb9f3a"], [0.8888888888888888, "#fdca26"], [1.0, "#f0f921"]]}], "choropleth": [{"type": "choropleth", "colorbar": {"outlinewidth": 0, "ticks": ""}}], "histogram2d": [{"type": "histogram2d", "colorbar": {"outlinewidth": 0, "ticks": ""}, "colorscale": [[0.0, "#0d0887"], [0.1111111111111111, "#46039f"], [0.2222222222222222, "#7201a8"], [0.3333333333333333, "#9c179e"], [0.4444444444444444, "#bd3786"], [0.5555555555555556, "#d8576b"], [0.6666666666666666, "#ed7953"], [0.7777777777777778, "#fb9f3a"], [0.8888888888888888, "#fdca26"], [1.0, "#f0f921"]]}], "heatmap": [{"type": "heatmap", "colorbar": {"outlinewidth": 0, "ticks": ""}, "colorscale": [[0.0, "#0d0887"], [0.1111111111111111, "#46039f"], [0.2222222222222222, "#7201a8"], [0.3333333333333333, "#9c179e"], [0.4444444444444444, "#bd3786"], [0.5555555555555556, "#d8576b"], [0.6666666666666666, "#ed7953"], [0.7777777777777778, "#fb9f3a"], [0.8888888888888888, "#fdca26"], [1.0, "#f0f921"]]}], "heatmapgl": [{"type": "heatmapgl", "colorbar": {"outlinewidth": 0, "ticks": ""}, "colorscale": [[0.0, "#0d0887"], [0.1111111111111111, "#46039f"], [0.2222222222222222, "#7201a8"], [0.3333333333333333, "#9c179e"], [0.4444444444444444, "#bd3786"], [0.5555555555555556, "#d8576b"], [0.6666666666666666, "#ed7953"], [0.7777777777777778, "#fb9f3a"], [0.8888888888888888, "#fdca26"], [1.0, "#f0f921"]]}], "contourcarpet": [{"type": "contourcarpet", "colorbar": {"outlinewidth": 0, "ticks": ""}}], "contour": [{"type": "contour", "colorbar": {"outlinewidth": 0, "ticks": ""}, "colorscale": [[0.0, "#0d0887"], [0.1111111111111111, "#46039f"], [0.2222222222222222, "#7201a8"], [0.3333333333333333, "#9c179e"], [0.4444444444444444, "#bd3786"], [0.5555555555555556, "#d8576b"], [0.6666666666666666, "#ed7953"], [0.7777777777777778, "#fb9f3a"], [0.8888888888888888, "#fdca26"], [1.0, "#f0f921"]]}], "surface": [{"type": "surface", "colorbar": {"outlinewidth": 0, "ticks": ""}, "colorscale": [[0.0, "#0d0887"], [0.1111111111111111, "#46039f"], [0.2222222222222222, "#7201a8"], [0.3333333333333333, "#9c179e"], [0.4444444444444444, "#bd3786"], [0.5555555555555556, "#d8576b"], [0.6666666666666666, "#ed7953"], [0.7777777777777778, "#fb9f3a"], [0.8888888888888888, "#fdca26"], [1.0, "#f0f921"]]}], "mesh3d": [{"type": "mesh3d", "colorbar": {"outlinewidth": 0, "ticks": ""}}], "scatter": [{"fillpattern": {"fillmode": "overlay", "size": 10, "solidity": 0.2}, "type": "scatter"}], "parcoords": [{"type": "parcoords", "line": {"colorbar": {"outlinewidth": 0, "ticks": ""}}}], "scatterpolargl": [{"type": "scatterpolargl", "marker": {"colorbar": {"outlinewidth": 0, "ticks": ""}}}], "bar": [{"error_x": {"color": "#2a3f5f"}, "error_y": {"color": "#2a3f5f"}, "marker": {"line": {"color": "#E5ECF6", "width": 0.5}, "pattern": {"fillmode": "overlay", "size": 10, "solidity": 0.2}}, "type": "bar"}], "scattergeo": [{"type": "scattergeo", "marker": {"colorbar": {"outlinewidth": 0, "ticks": ""}}}], "scatterpolar": [{"type": "scatterpolar", "marker": {"colorbar": {"outlinewidth": 0, "ticks": ""}}}], "histogram": [{"marker": {"pattern": {"fillmode": "overlay", "size": 10, "solidity": 0.2}}, "type": "histogram"}], "scattergl": [{"type": "scattergl", "marker": {"colorbar": {"outlinewidth": 0, "ticks": ""}}}], "scatter3d": [{"type": "scatter3d", "line": {"colorbar": {"outlinewidth": 0, "ticks": ""}}, "marker": {"colorbar": {"outlinewidth": 0, "ticks": ""}}}], "scattermapbox": [{"type": "scattermapbox", "marker": {"colorbar": {"outlinewidth": 0, "ticks": ""}}}], "scatterternary": [{"type": "scatterternary", "marker": {"colorbar": {"outlinewidth": 0, "ticks": ""}}}], "scattercarpet": [{"type": "scattercarpet", "marker": {"colorbar": {"outlinewidth": 0, "ticks": ""}}}], "carpet": [{"aaxis": {"endlinecolor": "#2a3f5f", "gridcolor": "white", "linecolor": "white", "minorgridcolor": "white", "startlinecolor": "#2a3f5f"}, "baxis": {"endlinecolor": "#2a3f5f", "gridcolor": "white", "linecolor": "white", "minorgridcolor": "white", "startlinecolor": "#2a3f5f"}, "type": "carpet"}], "table": [{"cells": {"fill": {"color": "#EBF0F8"}, "line": {"color": "white"}}, "header": {"fill": {"color": "#C8D4E3"}, "line": {"color": "white"}}, "type": "table"}], "barpolar": [{"marker": {"line": {"color": "#E5ECF6", "width": 0.5}, "pattern": {"fillmode": "overlay", "size": 10, "solidity": 0.2}}, "type": "barpolar"}], "pie": [{"automargin": true, "type": "pie"}]}, "layout": {"autotypenumbers": "strict", "colorway": ["#636efa", "#EF553B", "#00cc96", "#ab63fa", "#FFA15A", "#19d3f3", "#FF6692", "#B6E880", "#FF97FF", "#FECB52"], "font": {"color": "#2a3f5f"}, "hovermode": "closest", "hoverlabel": {"align": "left"}, "paper_bgcolor": "white", "plot_bgcolor": "#E5ECF6", "polar": {"bgcolor": "#E5ECF6", "angularaxis": {"gridcolor": "white", "linecolor": "white", "ticks": ""}, "radialaxis": {"gridcolor": "white", "linecolor": "white", "ticks": ""}}, "ternary": {"bgcolor": "#E5ECF6", "aaxis": {"gridcolor": "white", "linecolor": "white", "ticks": ""}, "baxis": {"gridcolor": "white", "linecolor": "white", "ticks": ""}, "caxis": {"gridcolor": "white", "linecolor": "white", "ticks": ""}}, "coloraxis": {"colorbar": {"outlinewidth": 0, "ticks": ""}}, "colorscale": {"sequential": [[0.0, "#0d0887"], [0.1111111111111111, "#46039f"], [0.2222222222222222, "#7201a8"], [0.3333333333333333, "#9c179e"], [0.4444444444444444, "#bd3786"], [0.5555555555555556, "#d8576b"], [0.6666666666666666, "#ed7953"], [0.7777777777777778, "#fb9f3a"], [0.8888888888888888, "#fdca26"], [1.0, "#f0f921"]], "sequentialminus": [[0.0, "#0d0887"], [0.1111111111111111, "#46039f"], [0.2222222222222222, "#7201a8"], [0.3333333333333333, "#9c179e"], [0.4444444444444444, "#bd3786"], [0.5555555555555556, "#d8576b"], [0.6666666666666666, "#ed7953"], [0.7777777777777778, "#fb9f3a"], [0.8888888888888888, "#fdca26"], [1.0, "#f0f921"]], "diverging": [[0, "#8e0152"], [0.1, "#c51b7d"], [0.2, "#de77ae"], [0.3, "#f1b6da"], [0.4, "#fde0ef"], [0.5, "#f7f7f7"], [0.6, "#e6f5d0"], [0.7, "#b8e186"], [0.8, "#7fbc41"], [0.9, "#4d9221"], [1, "#276419"]]}, "xaxis": {"gridcolor": "white", "linecolor": "white", "ticks": "", "title": {"standoff": 15}, "zerolinecolor": "white", "automargin": true, "zerolinewidth": 2}, "yaxis": {"gridcolor": "white", "linecolor": "white", "ticks": "", "title": {"standoff": 15}, "zerolinecolor": "white", "automargin": true, "zerolinewidth": 2}, "scene": {"xaxis": {"backgroundcolor": "#E5ECF6", "gridcolor": "white", "linecolor": "white", "showbackground": true, "ticks": "", "zerolinecolor": "white", "gridwidth": 2}, "yaxis": {"backgroundcolor": "#E5ECF6", "gridcolor": "white", "linecolor": "white", "showbackground": true, "ticks": "", "zerolinecolor": "white", "gridwidth": 2}, "zaxis": {"backgroundcolor": "#E5ECF6", "gridcolor": "white", "linecolor": "white", "showbackground": true, "ticks": "", "zerolinecolor": "white", "gridwidth": 2}}, "shapedefaults": {"line": {"color": "#2a3f5f"}}, "annotationdefaults": {"arrowcolor": "#2a3f5f", "arrowhead": 0, "arrowwidth": 1}, "geo": {"bgcolor": "white", "landcolor": "#E5ECF6", "subunitcolor": "white", "showland": true, "showlakes": true, "lakecolor": "white"}, "title": {"x": 0.05}, "mapbox": {"style": "light"}}}, "polar": {"radialaxis": {"visible": true, "range": [0, 1], "gridcolor": "#334155", "color": "#94a3b8"}, "angularaxis": {"gridcolor": "#334155", "color": "#94a3b8"}, "bgcolor": "#1e293b"}, "font": {"color": "#e2e8f0"}, "legend": {"bgcolor": "#1e293b"}, "margin": {"t": 60, "b": 40}, "title": {"text": "Top 3 Sites \u2014 Criteria Radar"}, "plot_bgcolor": "#0f172a", "paper_bgcolor": "#0f172a"}},
+  };
+
+  const cfg = {responsive: true, displayModeBar: false};
+  const sitesData = [{"site_id": "Manyata Tech Park", "final_rank": 1, "ahp_score": 0.8536, "ahp_rank": 1, "predicted_demand": 0.6574, "final_score": 0.6549, "competition_score": 0.1544, "nearest_competitor_km": 0.77, "competitor_name": "Elements Mall", "latitude": 13.047, "longitude": 77.62}, {"site_id": "Vijayanagar", "final_rank": 2, "ahp_score": 0.7885, "ahp_rank": 2, "predicted_demand": 0.513, "final_score": 0.6219, "competition_score": 0.3686, "nearest_competitor_km": 1.84, "competitor_name": "GT World Mall", "latitude": 12.975, "longitude": 77.535}, {"site_id": "Kalyan Nagar", "final_rank": 3, "ahp_score": 0.7697, "ahp_rank": 3, "predicted_demand": 0.4507, "final_score": 0.5864, "competition_score": 0.3318, "nearest_competitor_km": 1.66, "competitor_name": "Lithium Charging Station", "latitude": 13.028, "longitude": 77.639}, {"site_id": "Cunningham Road", "final_rank": 4, "ahp_score": 0.6144, "ahp_rank": 9, "predicted_demand": 0.6213, "final_score": 0.5806, "competition_score": 0.4348, "nearest_competitor_km": 2.17, "competitor_name": "Ather Grid Point - 6000 Miles to Isle of Man", "latitude": 12.995, "longitude": 77.595}, {"site_id": "MG Road Metro Station", "final_rank": 5, "ahp_score": 0.7685, "ahp_rank": 4, "predicted_demand": 0.6374, "final_score": 0.5755, "competition_score": 0.0, "nearest_competitor_km": 0.35, "competitor_name": "Forum Rex Walk", "latitude": 12.9756, "longitude": 77.6069}, {"site_id": "Jayanagar 4th Block", "final_rank": 6, "ahp_score": 0.731, "ahp_rank": 7, "predicted_demand": 0.6393, "final_score": 0.5573, "competition_score": 0.0, "nearest_competitor_km": 0.32, "competitor_name": "AtherGrid Go Native Cafe", "latitude": 12.925, "longitude": 77.5833}, {"site_id": "Brigade Road", "final_rank": 7, "ahp_score": 0.745, "ahp_rank": 5, "predicted_demand": 0.5822, "final_score": 0.5471, "competition_score": 0.0, "nearest_competitor_km": 0.11, "competitor_name": "Vivanta by Taj Residency Road", "latitude": 12.9716, "longitude": 77.6081}, {"site_id": "Residency Road", "final_rank": 7, "ahp_score": 0.745, "ahp_rank": 5, "predicted_demand": 0.5822, "final_score": 0.5471, "competition_score": 0.0, "nearest_competitor_km": 0.11, "competitor_name": "Vivanta by Taj Residency Road", "latitude": 12.9716, "longitude": 77.6081}, {"site_id": "Hennur Main Road", "final_rank": 9, "ahp_score": 0.5892, "ahp_rank": 10, "predicted_demand": 0.4823, "final_score": 0.5287, "competition_score": 0.447, "nearest_competitor_km": 2.23, "competitor_name": "Lithium Charging Station", "latitude": 13.035, "longitude": 77.645}, {"site_id": "Thanisandra Main Road", "final_rank": 10, "ahp_score": 0.5882, "ahp_rank": 11, "predicted_demand": 0.4443, "final_score": 0.5185, "competition_score": 0.4557, "nearest_competitor_km": 2.28, "competitor_name": "Shell Recharge Hennur", "latitude": 13.055, "longitude": 77.655}, {"site_id": "Hebbal Flyover", "final_rank": 11, "ahp_score": 0.6461, "ahp_rank": 8, "predicted_demand": 0.4488, "final_score": 0.5127, "competition_score": 0.2748, "nearest_competitor_km": 1.37, "competitor_name": "Sixth Gear Cars", "latitude": 13.0358, "longitude": 77.597}, {"site_id": "Frazer Town", "final_rank": 12, "ahp_score": 0.5274, "ahp_rank": 12, "predicted_demand": 0.5109, "final_score": 0.417, "competition_score": 0.0, "nearest_competitor_km": 0.36, "competitor_name": "Ather Grid Point - Moto Store & Cafe", "latitude": 12.989, "longitude": 77.618}, {"site_id": "Kammanahalli Main Road", "final_rank": 13, "ahp_score": 0.5182, "ahp_rank": 13, "predicted_demand": 0.3161, "final_score": 0.3926, "competition_score": 0.1932, "nearest_competitor_km": 0.97, "competitor_name": "Lithium Charging Station", "latitude": 13.012, "longitude": 77.638}, {"site_id": "Ulsoor Lake Area", "final_rank": 14, "ahp_score": 0.3961, "ahp_rank": 14, "predicted_demand": 0.586, "final_score": 0.3738, "competition_score": 0.0, "nearest_competitor_km": 0.43, "competitor_name": "RMZ MILLENIA", "latitude": 12.981, "longitude": 77.621}, {"site_id": "Nagawara", "final_rank": 15, "ahp_score": 0.3493, "ahp_rank": 15, "predicted_demand": 0.4858, "final_score": 0.3415, "competition_score": 0.1055, "nearest_competitor_km": 0.53, "competitor_name": "Adishakti Cars, Hebbal", "latitude": 13.045, "longitude": 77.605}];
+
+  function renderAll() {
+    Plotly.newPlot('chart-ahp-overview', charts.ahp.data, charts.ahp.layout, cfg);
+    Plotly.newPlot('chart-radar-overview', charts.radar.data, charts.radar.layout, cfg);
+    Plotly.newPlot('chart-top-overview', charts.topSites.data, charts.topSites.layout, cfg);
+    Plotly.newPlot('chart-ahp', charts.ahp.data, charts.ahp.layout, cfg);
+    Plotly.newPlot('chart-radar', charts.radar.data, charts.radar.layout, cfg);
+    Plotly.newPlot('chart-dist', charts.dist.data, charts.dist.layout, cfg);
+    Plotly.newPlot('chart-scatter', charts.scatter.data, charts.scatter.layout, cfg);
+    Plotly.newPlot('chart-importance', charts.importance.data, charts.importance.layout, cfg);
+    Plotly.newPlot('chart-scatter-model', charts.scatter.data, charts.scatter.layout, cfg);
+  }
+
+  function showTab(name, el) {
+    document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('nav a').forEach(a => a.classList.remove('active'));
+    document.getElementById('tab-' + name).classList.add('active');
+    if (el) {
+      el.classList.add('active');
+      const navLink = [...document.querySelectorAll('nav a')].find(a => a.getAttribute('onclick') && a.getAttribute('onclick').includes(name));
+      if (navLink) navLink.classList.add('active');
+    }
+    setTimeout(() => window.dispatchEvent(new Event('resize')), 50);
+  }
+
+  function initDataTable() {
+    $('#sitesTable').DataTable({
+      data: sitesData,
+      columns: [
+        { 
+          data: 'final_rank',
+          render: function(data) {
+            const color = data <= 3 ? '#f59e0b' : data <= 10 ? '#3b82f6' : '#64748b';
+            return '<span class="rank-badge" style="background:' + color + '">#' + data + '</span>';
+          }
+        },
+        { 
+          data: 'site_id',
+          render: function(data) {
+            return '<span class="site-id">' + data + '</span>';
+          }
+        },
+        { 
+          data: 'ahp_score',
+          render: function(data) {
+            return '<div class="score-bar-wrap"><div class="score-bar" style="width:' + (data*100) + '%;background:#3b82f6"></div><span>' + data.toFixed(3) + '</span></div>';
+          }
+        },
+        { data: 'ahp_rank' },
+        { 
+          data: 'predicted_demand',
+          render: function(data) {
+            return '<div class="score-bar-wrap"><div class="score-bar" style="width:' + (data*100) + '%;background:#10b981"></div><span>' + data.toFixed(3) + '</span></div>';
+          }
+        },
+        { 
+          data: 'competition_score',
+          render: function(data) {
+            if (data === undefined) return 'N/A';
+            const color = data >= 0.7 ? '#10b981' : data >= 0.4 ? '#f59e0b' : '#ef4444';
+            return '<span style="color:' + color + ';font-weight:600">' + data.toFixed(3) + '</span>';
+          }
+        },
+        { 
+          data: 'nearest_competitor_km',
+          render: function(data) {
+            if (data === undefined) return 'N/A';
+            return data.toFixed(2);
+          }
+        },
+        { 
+          data: 'final_score',
+          render: function(data) {
+            const color = data >= 0.65 ? '#10b981' : data >= 0.50 ? '#f59e0b' : '#ef4444';
+            return '<span class="final-score" style="color:' + color + '">' + data.toFixed(3) + '</span>';
+          }
+        }
+      ],
+      order: [[0, 'asc']],
+      pageLength: 25,
+      lengthMenu: [[10, 25, 50, -1], [10, 25, 50, 'All']],
+      dom: 'Bfrtip',
+      buttons: ['copy', 'csv', 'excel', 'pdf', 'print'],
+      language: {
+        search: 'Search sites:',
+        lengthMenu: 'Show _MENU_ sites per page',
+        info: 'Showing _START_ to _END_ of _TOTAL_ sites',
+        infoEmpty: 'No sites available',
+        infoFiltered: '(filtered from _MAX_ total sites)'
+      }
+    });
+  }
+
+  window.addEventListener('load', function() {
+    renderAll();
+    initDataTable();
+  });
+</script>
+</body>
+</html>
